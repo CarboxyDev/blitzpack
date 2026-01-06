@@ -3,6 +3,12 @@ import { downloadTemplate } from 'giget';
 import type { Ora } from 'ora';
 import path from 'path';
 
+import {
+  FEATURE_EXCLUSIONS,
+  type FeatureKey,
+  type FeatureOptions,
+} from './constants.js';
+
 const GITHUB_REPO = 'github:CarboxyDev/blitzpack';
 
 const POST_DOWNLOAD_EXCLUDES = [
@@ -13,8 +19,22 @@ const POST_DOWNLOAD_EXCLUDES = [
   'docker-compose.prod.yml',
 ];
 
-async function cleanupExcludes(targetDir: string): Promise<void> {
-  for (const exclude of POST_DOWNLOAD_EXCLUDES) {
+function getFeatureExclusions(features: FeatureOptions): string[] {
+  const exclusions: string[] = [];
+  for (const [key, enabled] of Object.entries(features)) {
+    if (!enabled) {
+      exclusions.push(...FEATURE_EXCLUSIONS[key as FeatureKey]);
+    }
+  }
+  return exclusions;
+}
+
+async function cleanupExcludes(
+  targetDir: string,
+  additionalExcludes: string[] = []
+): Promise<void> {
+  const allExcludes = [...POST_DOWNLOAD_EXCLUDES, ...additionalExcludes];
+  for (const exclude of allExcludes) {
     const fullPath = path.join(targetDir, exclude);
     if (await fs.pathExists(fullPath)) {
       await fs.remove(fullPath);
@@ -24,7 +44,8 @@ async function cleanupExcludes(targetDir: string): Promise<void> {
 
 export async function downloadAndPrepareTemplate(
   targetDir: string,
-  spinner: Ora
+  spinner: Ora,
+  features: FeatureOptions
 ): Promise<void> {
   spinner.text = 'Fetching template from GitHub...';
   await downloadTemplate(GITHUB_REPO, {
@@ -33,13 +54,12 @@ export async function downloadAndPrepareTemplate(
   });
 
   spinner.text = 'Extracting files...';
-  // Small delay to show this step
   await new Promise((resolve) => setTimeout(resolve, 100));
 
   spinner.text = 'Cleaning up template files...';
-  await cleanupExcludes(targetDir);
+  const featureExclusions = getFeatureExclusions(features);
+  await cleanupExcludes(targetDir, featureExclusions);
 
-  // Count files for user feedback
   const files = await countFiles(targetDir);
   spinner.succeed(`Downloaded template (${files} files)`);
 }

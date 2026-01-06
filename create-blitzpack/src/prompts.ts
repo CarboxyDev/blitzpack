@@ -1,7 +1,11 @@
 import chalk from 'chalk';
 import prompts from 'prompts';
 
-import { DEFAULT_DESCRIPTION } from './constants.js';
+import {
+  DEFAULT_DESCRIPTION,
+  type FeatureOptions,
+  OPTIONAL_FEATURES,
+} from './constants.js';
 import { isDockerRunning } from './docker.js';
 import { getCurrentDirName, toSlug, validateProjectName } from './utils.js';
 
@@ -12,6 +16,7 @@ export interface ProjectOptions {
   skipGit: boolean;
   skipInstall: boolean;
   useCurrentDir: boolean;
+  features: FeatureOptions;
 }
 
 export async function getProjectOptions(
@@ -62,6 +67,11 @@ export async function getProjectOptions(
     return null;
   }
 
+  const features = await promptFeatureSelection();
+  if (!features) {
+    return null;
+  }
+
   const useCurrentDir = projectName === '.';
   const actualProjectName = useCurrentDir ? getCurrentDirName() : projectName;
 
@@ -72,6 +82,43 @@ export async function getProjectOptions(
     skipGit: flags.skipGit || false,
     skipInstall: flags.skipInstall || false,
     useCurrentDir,
+    features,
+  };
+}
+
+async function promptFeatureSelection(): Promise<FeatureOptions | null> {
+  const featureChoices = OPTIONAL_FEATURES.map((feature) => ({
+    title: `${feature.name} ${chalk.dim(`(${feature.description})`)}`,
+    value: feature.key,
+    selected: true,
+  }));
+
+  let cancelled = false;
+  const { selectedFeatures } = await prompts(
+    {
+      type: 'multiselect',
+      name: 'selectedFeatures',
+      message: 'Include optional features:',
+      choices: featureChoices,
+      hint: '- Space to toggle, Enter to confirm',
+      instructions: false,
+    },
+    {
+      onCancel: () => {
+        cancelled = true;
+      },
+    }
+  );
+
+  if (cancelled) {
+    return null;
+  }
+
+  const selected = selectedFeatures || [];
+  return {
+    testing: selected.includes('testing'),
+    admin: selected.includes('admin'),
+    uploads: selected.includes('uploads'),
   };
 }
 

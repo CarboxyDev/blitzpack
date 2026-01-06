@@ -1,6 +1,6 @@
 {
   "name": "create-blitzpack",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Create a new Blitzpack project - full-stack TypeScript monorepo with Next.js and Fastify",
   "type": "module",
   "bin": {
@@ -16,21 +16,21 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "chalk": "^5.4.1",
+    "chalk": "^5.6.2",
     "commander": "^13.1.0",
-    "fs-extra": "^11.3.0",
+    "fs-extra": "^11.3.3",
     "giget": "^2.0.0",
     "ora": "^8.2.0",
     "prompts": "^2.4.2",
-    "validate-npm-package-name": "^6.0.0"
+    "validate-npm-package-name": "^6.0.2"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "^22.10.5",
+    "@types/node": "^22.19.3",
     "@types/prompts": "^2.4.9",
     "@types/validate-npm-package-name": "^4.0.2",
-    "tsup": "^8.5.0",
-    "typescript": "^5.7.2"
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
   },
   "keywords": [
     "create",
