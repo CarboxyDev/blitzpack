@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import {
   Check,
+  Database,
   type LucideIcon,
   Mail,
   Server,
@@ -12,50 +13,48 @@ import {
 } from 'lucide-react';
 import React from 'react';
 
-import { cn } from '@/lib/utils';
-
 interface Feature {
   icon: LucideIcon;
   title: string;
-  description: string;
   highlights: string[];
-  featured?: boolean;
 }
 
 const FEATURES: Feature[] = [
   {
     icon: ShieldCheck,
-    title: 'Complete Authentication System',
-    description:
-      'Production-ready auth powered by Better Auth. Blitzpack comes with a secure and intuitive authentication system out of the box.',
+    title: 'Authentication',
     highlights: [
-      'Login and Signup flows',
-      'Email verification & password reset flows',
-      'Google and GitHub OAuth providers ready',
+      'Login & Signup flows',
+      'Email verification & password reset',
+      'Google and GitHub OAuth',
       'Session management with refresh',
-      'Intuitive role-based access control',
+      'Role-based access control',
     ],
-    featured: true,
   },
   {
     icon: Server,
-    title: 'Robust API Infrastructure',
-    description:
-      'Battle-tested REST API with Fastify. Blitzpack ships with everything you could possibly need to accelerate your development.',
+    title: 'API Infrastructure',
     highlights: [
       'Zod validation everywhere',
       'Structured logging with Pino',
       'Rate limiting built-in',
-      'API documentation with Scalar',
-      'Comprehensive testing infrastructure',
+      'Auto-generated API docs',
+      'Testing infrastructure',
     ],
-    featured: true,
+  },
+  {
+    icon: Database,
+    title: 'Database',
+    highlights: [
+      'Prisma ORM with PostgreSQL',
+      'Migration system',
+      'Database seeding',
+      'Docker Compose setup',
+    ],
   },
   {
     icon: UserCog,
     title: 'Admin Dashboard',
-    description:
-      'Complete admin dashboard with real-time system monitoring, user management, and session controls.',
     highlights: [
       'Live metrics & analytics',
       'User CRUD operations',
@@ -66,26 +65,21 @@ const FEATURES: Feature[] = [
   {
     icon: Mail,
     title: 'Email System',
-    description:
-      'Beautiful transactional emails with React Email and Resend integration ready to use with ease.',
     highlights: [
       'React Email templates',
       'Verification & reset emails',
-      'Welcome & notification emails',
-      'Resend API integration',
+      'Welcome emails',
+      'Resend integration',
     ],
   },
   {
     icon: Wrench,
     title: 'Developer Tooling',
-    description:
-      'Blitzpack ships with everything you need to for a smooth development workflow.',
     highlights: [
       'CLI setup wizard',
       'Vitest testing suite',
-      'Git hooks & GitHub Actions CI',
-      'ESLint and Prettier configured',
-      'Local Docker setup',
+      'Git hooks & CI/CD',
+      'ESLint & Prettier',
     ],
   },
 ];
@@ -96,7 +90,6 @@ const container = {
     opacity: 1,
     transition: {
       staggerChildren: 0.08,
-      delayChildren: 0.1,
     },
   },
 };
@@ -106,117 +99,48 @@ const item = {
   show: {
     opacity: 1,
     y: 0,
-    transition: {
-      duration: 0.4,
-    },
+    transition: { duration: 0.4 },
   },
 };
 
-interface FeatureCardProps {
-  feature: Feature;
-}
-
-function FeatureCard({ feature }: FeatureCardProps) {
-  const { icon: Icon, title, description, highlights, featured } = feature;
+function FeatureCard({ feature }: { feature: Feature }) {
+  const { icon: Icon, title, highlights } = feature;
 
   return (
     <motion.div
-      className={cn(
-        'bg-card border-border hover:border-primary/30 group relative flex h-full flex-col overflow-hidden rounded-xl border transition-all',
-        featured ? 'p-8 lg:p-10' : 'p-6 lg:p-7'
-      )}
-      style={{
-        filter: 'drop-shadow(0 0 0px transparent)',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.filter = featured
-          ? 'drop-shadow(0 0 24px hsl(var(--primary) / 0.15))'
-          : 'drop-shadow(0 0 16px hsl(var(--primary) / 0.12))';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.filter = 'drop-shadow(0 0 0px transparent)';
-      }}
+      variants={item}
+      className="border-border bg-card hover:border-primary/30 group relative flex h-full flex-col rounded-xl border p-6 transition-colors duration-200"
     >
-      <div className="flex flex-col space-y-4">
-        <div
-          className={cn(
-            'bg-primary/10 text-primary group-hover:bg-primary/15 flex shrink-0 items-center justify-center rounded-lg transition-all duration-300',
-            featured ? 'h-14 w-14' : 'h-12 w-12'
-          )}
-        >
-          <Icon
-            className={cn(
-              'transition-transform group-hover:scale-110',
-              featured ? 'h-7 w-7' : 'h-6 w-6'
-            )}
-          />
+      <div className="mb-4 flex items-center gap-3">
+        <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-lg">
+          <Icon className="h-5 w-5" />
         </div>
-
-        <div className="space-y-2">
-          <h3
-            className={cn(
-              'text-foreground font-semibold leading-tight',
-              featured ? 'text-lg lg:text-xl' : 'text-lg'
-            )}
-          >
-            {title}
-          </h3>
-          <p
-            className={cn(
-              'text-muted-foreground leading-relaxed',
-              featured ? 'text-base' : 'text-sm'
-            )}
-          >
-            {description}
-          </p>
-        </div>
-
-        <ul className="border-border space-y-2.5 border-t pt-4">
-          {highlights.map((highlight) => (
-            <motion.li key={highlight} className="flex items-start gap-3">
-              <motion.div
-                initial={{ scale: 1 }}
-                whileHover={{ scale: 1.15 }}
-                transition={{ duration: 0.2 }}
-                className={cn(
-                  'flex shrink-0 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 transition-all group-hover:border-emerald-500/30 group-hover:bg-emerald-500/15',
-                  featured ? 'h-6 w-6' : 'h-5 w-5'
-                )}
-              >
-                <Check
-                  className={cn(
-                    'text-emerald-600',
-                    featured ? 'h-3.5 w-3.5' : 'h-3 w-3'
-                  )}
-                  strokeWidth={3}
-                />
-              </motion.div>
-              <span
-                className={cn(
-                  'text-muted-foreground',
-                  featured ? 'text-sm' : 'text-sm'
-                )}
-              >
-                {highlight}
-              </span>
-            </motion.li>
-          ))}
-        </ul>
+        <h3 className="text-foreground text-lg font-semibold">{title}</h3>
       </div>
+
+      <ul className="flex flex-col gap-2.5">
+        {highlights.map((text) => (
+          <li key={text} className="flex items-center gap-2.5">
+            <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/15">
+              <Check className="h-2.5 w-2.5 text-emerald-500" strokeWidth={3} />
+            </div>
+            <span className="text-muted-foreground text-sm">{text}</span>
+          </li>
+        ))}
+      </ul>
     </motion.div>
   );
 }
 
 export function IncludedSection() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       <div className="text-center">
-        <h2 className="text-foreground mb-4 text-3xl font-semibold tracking-tight lg:text-5xl">
+        <h2 className="text-foreground mb-3 text-3xl font-semibold tracking-tight lg:text-4xl">
           What's Included
         </h2>
-        <p className="text-muted-foreground mx-auto max-w-2xl text-lg leading-relaxed">
-          Production-ready features configured and working out of the box. No
-          assembly required.
+        <p className="text-muted-foreground text-base lg:text-lg">
+          Production-ready features, configured and working out of the box.
         </p>
       </div>
 
@@ -224,21 +148,11 @@ export function IncludedSection() {
         variants={container}
         initial="hidden"
         whileInView="show"
-        viewport={{ once: true, margin: '-100px' }}
-        className="grid auto-rows-fr grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-6 lg:gap-x-6 lg:gap-y-8"
+        viewport={{ once: true, margin: '-80px' }}
+        className="grid gap-5 md:grid-cols-2 lg:grid-cols-3"
       >
         {FEATURES.map((feature) => (
-          <motion.div
-            key={feature.title}
-            variants={item}
-            className={cn(
-              feature.featured
-                ? 'col-span-full md:col-span-3 lg:col-span-3'
-                : 'col-span-full md:col-span-3 lg:col-span-2'
-            )}
-          >
-            <FeatureCard feature={feature} />
-          </motion.div>
+          <FeatureCard key={feature.title} feature={feature} />
         ))}
       </motion.div>
     </div>
