@@ -540,6 +540,8 @@ function TreeItem({
   return (
     <div>
       <div
+        role="button"
+        tabIndex={0}
         className={cn(
           'group relative flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 transition-colors',
           isHovered && 'bg-primary/10',
@@ -547,6 +549,12 @@ function TreeItem({
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={() => isFolder && toggleExpand(path)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            if (isFolder) toggleExpand(path);
+          }
+        }}
         onMouseEnter={() => setHoveredPath(path)}
         onMouseLeave={() => setHoveredPath(null)}
       >
@@ -554,14 +562,14 @@ function TreeItem({
           <motion.div
             animate={{ rotate: isExpanded ? 90 : 0 }}
             transition={{ duration: 0.15 }}
-            className="flex-shrink-0"
+            className="shrink-0"
           >
             <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
           </motion.div>
         )}
         {!hasChildren && isFolder && <div className="w-3.5" />}
 
-        <span className="flex-shrink-0">
+        <span className="shrink-0">
           {getFileIcon(node.type, node.icon, isExpanded)}
         </span>
 
@@ -718,17 +726,6 @@ export function ExploreStructureSection() {
           ))}
         </div>
       </motion.div>
-
-      <motion.p
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="text-muted-foreground/60 text-center text-sm"
-      >
-        Click folders to expand • Hover for details • Highlighted items are key
-        files
-      </motion.p>
     </div>
   );
 }
