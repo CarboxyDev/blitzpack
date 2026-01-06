@@ -33,7 +33,9 @@ model User {
 
   sessions      Session[]
   accounts      Account[]
+  // @feature uploads
   uploads       Upload[]
+  // @endfeature
 
   @@map("users")
 }
@@ -95,7 +97,7 @@ model Verification {
   @@map("verifications")
 }
 
-
+// @feature uploads
 model Upload {
   id           String   @id @default(cuid())
   filename     String   @unique 
@@ -113,4 +115,5 @@ model Upload {
   @@index([createdAt])
   @@map("uploads")
 }
+// @endfeature
 

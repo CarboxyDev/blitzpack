@@ -6,6 +6,7 @@ import path from 'path';
 import prompts from 'prompts';
 
 import { runPreflightChecks } from '../checks.js';
+import type { FeatureOptions } from '../constants.js';
 import { runDatabaseMigrations, runDockerCompose } from '../docker.js';
 import { initGit, isGitInstalled } from '../git.js';
 import { getProjectOptions, promptAutomaticSetup } from '../prompts.js';
@@ -53,6 +54,7 @@ function printDryRun(options: {
   targetDir: string;
   skipGit: boolean;
   skipInstall: boolean;
+  features: FeatureOptions;
 }): void {
   console.log(chalk.yellow('  Dry run mode - no changes will be made'));
   console.log();
@@ -63,6 +65,20 @@ function printDryRun(options: {
   console.log(`    ${chalk.cyan('Slug:')}         ${options.projectSlug}`);
   console.log(
     `    ${chalk.cyan('Description:')}  ${options.projectDescription}`
+  );
+  console.log();
+  console.log(chalk.bold('  Features:'));
+  console.log();
+  const featureStatus = (enabled: boolean) =>
+    enabled ? chalk.green('✓') : chalk.red('✗');
+  console.log(
+    `    ${featureStatus(options.features.testing)} Testing ${chalk.dim('(vitest, integration tests)')}`
+  );
+  console.log(
+    `    ${featureStatus(options.features.admin)} Admin Dashboard ${chalk.dim('(user management, stats)')}`
+  );
+  console.log(
+    `    ${featureStatus(options.features.uploads)} File Uploads ${chalk.dim('(S3 storage, upload routes)')}`
   );
   console.log();
   console.log(chalk.bold('  Would run:'));
@@ -108,6 +124,7 @@ export async function create(
       targetDir,
       skipGit: options.skipGit,
       skipInstall: options.skipInstall,
+      features: options.features,
     });
     return;
   }
@@ -137,14 +154,18 @@ export async function create(
 
   try {
     spinner.start('Downloading template from GitHub...');
-    await downloadAndPrepareTemplate(targetDir, spinner);
+    await downloadAndPrepareTemplate(targetDir, spinner, options.features);
 
     spinner.start('Configuring project...');
-    await transformFiles(targetDir, {
-      projectName: options.projectName,
-      projectSlug: options.projectSlug,
-      projectDescription: options.projectDescription,
-    });
+    await transformFiles(
+      targetDir,
+      {
+        projectName: options.projectName,
+        projectSlug: options.projectSlug,
+        projectDescription: options.projectDescription,
+      },
+      options.features
+    );
     await copyEnvFiles(targetDir);
     spinner.succeed('Configured project');
 

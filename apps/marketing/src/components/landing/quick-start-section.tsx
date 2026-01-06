@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Check, Copy, Terminal } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -34,15 +34,17 @@ const item = {
 export function QuickStartSection() {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
+    if (copied) return;
+
     try {
       await navigator.clipboard.writeText(COMMAND);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
     } catch (err) {
       console.error('Failed to copy:', err);
     }
-  };
+  }, [copied]);
 
   return (
     <motion.div
@@ -52,7 +54,8 @@ export function QuickStartSection() {
       viewport={{ once: true, margin: '-100px' }}
       className="relative space-y-12"
     >
-      <div className="pointer-events-none absolute -inset-x-20 -inset-y-16 z-0 overflow-hidden rounded-2xl">
+      {/* Grid background - extended further down */}
+      <div className="pointer-events-none absolute -inset-x-20 -bottom-32 -top-16 z-0 overflow-hidden rounded-2xl">
         <motion.div
           className="absolute inset-0"
           animate={{
@@ -71,10 +74,10 @@ export function QuickStartSection() {
             backgroundSize: '40px 40px',
           }}
         />
-        {/* Edge fade overlay for subtle fade effect */}
         <div className="from-background/80 to-background/80 absolute inset-0 bg-gradient-to-r via-transparent" />
         <div className="from-background/80 to-background/80 absolute inset-0 bg-gradient-to-b via-transparent" />
       </div>
+
       <motion.div variants={item} className="relative z-10 text-center">
         <div className="mb-4 flex items-center justify-center gap-3">
           <Terminal className="text-primary h-7 w-7 lg:h-8 lg:w-8" />
@@ -88,49 +91,69 @@ export function QuickStartSection() {
       </motion.div>
 
       <motion.div variants={item} className="relative z-10 flex justify-center">
-        <motion.div
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="group relative w-full max-w-3xl"
-        >
-          <div className="bg-card/50 border-primary/20 relative overflow-hidden rounded-2xl border backdrop-blur-xl">
-            <div className="from-primary/5 to-primary/5 absolute inset-0 bg-gradient-to-br via-transparent" />
+        <div className="group relative w-full max-w-3xl">
+          <div className="bg-card border-border relative rounded-xl border shadow-lg">
+            {/* Terminal header */}
+            <div className="border-border bg-muted/50 flex h-10 items-center justify-between border-b px-4">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-full bg-[#ff5f56]" />
+                <div className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
+                <div className="h-3 w-3 rounded-full bg-[#27c93f]" />
+              </div>
+              <span className="text-muted-foreground text-xs font-medium">
+                terminal
+              </span>
+              <div className="w-[52px]" />
+            </div>
 
-            <div className="relative flex flex-col items-center gap-6 p-6 sm:p-8 lg:flex-row lg:justify-between lg:p-10">
+            {/* Terminal content */}
+            <div className="relative flex flex-col items-center gap-6 p-6 sm:p-8 lg:flex-row lg:justify-between lg:p-8">
+              {/* Command display */}
               <div className="flex items-center gap-3 font-mono text-base sm:gap-4 sm:text-lg lg:text-xl">
                 <span className="text-primary font-bold">$</span>
-                <span className="text-foreground break-all font-semibold tracking-wide sm:break-normal">
+                <span className="text-foreground break-all font-medium tracking-wide sm:break-normal">
                   {COMMAND}
                 </span>
               </div>
 
+              {/* Copy button */}
               <motion.button
                 onClick={handleCopy}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 className={cn(
-                  'group/btn relative flex h-12 w-40 cursor-pointer items-center justify-center gap-2.5 rounded-xl font-semibold shadow-lg transition-all duration-300',
+                  'relative flex h-11 w-36 cursor-pointer items-center justify-center gap-2 rounded-lg font-semibold shadow-md transition-all duration-300',
                   copied
-                    ? 'bg-emerald-500 text-white shadow-emerald-500/50 hover:bg-emerald-500/90'
-                    : 'bg-primary text-primary-foreground shadow-primary/30 hover:bg-primary/90 hover:shadow-primary/50'
+                    ? 'bg-emerald-500 text-white shadow-emerald-500/30'
+                    : 'bg-primary text-primary-foreground shadow-primary/20 hover:shadow-primary/40'
                 )}
               >
                 <motion.div
                   initial={false}
-                  animate={{
-                    scale: copied ? [1, 1.2, 1] : 1,
-                    rotate: copied ? [0, -10, 10, 0] : 0,
-                  }}
-                  transition={{ duration: 0.4 }}
+                  animate={
+                    copied
+                      ? {
+                          scale: [1, 1.3, 1],
+                          rotate: [0, -15, 15, 0],
+                        }
+                      : { scale: 1, rotate: 0 }
+                  }
+                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
                 >
                   {copied ? (
-                    <Check className="size-5" strokeWidth={3} />
+                    <Check className="size-4" strokeWidth={3} />
                   ) : (
-                    <Copy className="size-5" />
+                    <Copy className="size-4" />
                   )}
                 </motion.div>
-                <span className="text-base">{copied ? 'Copied!' : 'Copy'}</span>
+                <span className="text-sm">{copied ? 'Copied!' : 'Copy'}</span>
               </motion.button>
             </div>
+
+            {/* Bottom accent line */}
+            <div className="from-primary/0 via-primary/50 to-primary/0 h-px bg-gradient-to-r" />
           </div>
-        </motion.div>
+        </div>
       </motion.div>
     </motion.div>
   );

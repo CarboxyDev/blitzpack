@@ -1,12 +1,88 @@
 import fs from 'fs-extra';
 import path from 'path';
 
-import { REPLACEABLE_FILES, type TemplateVariables } from './constants.js';
+import {
+  type FeatureKey,
+  type FeatureOptions,
+  REPLACEABLE_FILES,
+  type TemplateVariables,
+} from './constants.js';
+
+const TESTING_SCRIPTS = [
+  'test',
+  'test:unit',
+  'test:integration',
+  'test:watch',
+  'test:coverage',
+  'test:parallel',
+];
+
+const TESTING_ROOT_DEVDEPS = [
+  '@testing-library/jest-dom',
+  '@testing-library/react',
+  '@testing-library/user-event',
+  '@vitest/coverage-v8',
+  'jsdom',
+  'vitest',
+];
+
+const TESTING_APP_DEVDEPS = ['vitest', 'vite-tsconfig-paths'];
+
+const UPLOADS_API_DEPS = ['@aws-sdk/client-s3', 'sharp'];
+
+const MARKER_FILES = [
+  'apps/api/src/app.ts',
+  'apps/api/src/plugins/services.ts',
+  'apps/api/prisma/schema.prisma',
+];
+
+function stripFeatureBlocks(
+  content: string,
+  disabledFeatures: FeatureKey[]
+): string {
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let skipUntilEnd = false;
+  let currentFeature: string | null = null;
+
+  for (const line of lines) {
+    const featureStart = line.match(/\/\/\s*@feature\s+(\w+)/);
+    const featureEnd = line.match(/\/\/\s*@endfeature/);
+
+    if (featureStart) {
+      const feature = featureStart[1] as FeatureKey;
+      if (disabledFeatures.includes(feature)) {
+        skipUntilEnd = true;
+        currentFeature = feature;
+      }
+      continue;
+    }
+
+    if (featureEnd) {
+      if (skipUntilEnd) {
+        skipUntilEnd = false;
+        currentFeature = null;
+      }
+      continue;
+    }
+
+    if (!skipUntilEnd) {
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
+}
+
+function cleanEmptyLines(content: string): string {
+  return content.replace(/\n{3,}/g, '\n\n');
+}
 
 function transformPackageJson(
   content: string,
   vars: TemplateVariables,
-  filePath: string
+  filePath: string,
+  features: FeatureOptions
 ): string {
   const pkg = JSON.parse(content);
 
@@ -17,6 +93,37 @@ function transformPackageJson(
     delete pkg.homepage;
     delete pkg.scripts?.['init:project'];
     pkg.version = '0.1.0';
+
+    if (!features.testing) {
+      for (const script of TESTING_SCRIPTS) {
+        delete pkg.scripts?.[script];
+      }
+      for (const dep of TESTING_ROOT_DEVDEPS) {
+        delete pkg.devDependencies?.[dep];
+      }
+    }
+  }
+
+  if (
+    filePath === 'apps/api/package.json' ||
+    filePath === 'apps/web/package.json'
+  ) {
+    if (!features.testing) {
+      for (const script of TESTING_SCRIPTS) {
+        delete pkg.scripts?.[script];
+      }
+      for (const dep of TESTING_APP_DEVDEPS) {
+        delete pkg.devDependencies?.[dep];
+      }
+    }
+  }
+
+  if (filePath === 'apps/api/package.json') {
+    if (!features.uploads) {
+      for (const dep of UPLOADS_API_DEPS) {
+        delete pkg.dependencies?.[dep];
+      }
+    }
   }
 
   return JSON.stringify(pkg, null, 2) + '\n';
@@ -97,9 +204,16 @@ Built with [Blitzpack](https://github.com/CarboxyDev/blitzpack)
 
 export async function transformFiles(
   targetDir: string,
-  vars: TemplateVariables
+  vars: TemplateVariables,
+  features: FeatureOptions
 ): Promise<void> {
-  for (const relativePath of REPLACEABLE_FILES) {
+  const filesToTransform = [
+    ...REPLACEABLE_FILES,
+    'apps/api/package.json',
+    'apps/web/package.json',
+  ];
+
+  for (const relativePath of filesToTransform) {
     const filePath = path.join(targetDir, relativePath);
 
     if (!(await fs.pathExists(filePath))) {
@@ -112,7 +226,7 @@ export async function transformFiles(
     if (relativePath === 'README.md') {
       transformed = generateReadme(vars);
     } else if (relativePath.endsWith('package.json')) {
-      transformed = transformPackageJson(content, vars, relativePath);
+      transformed = transformPackageJson(content, vars, relativePath, features);
     } else if (relativePath.includes('site.ts')) {
       transformed = transformSiteConfig(content, vars);
     } else if (relativePath.includes('layout.tsx')) {
@@ -124,5 +238,50 @@ export async function transformFiles(
     }
 
     await fs.writeFile(filePath, transformed, 'utf-8');
+  }
+
+  await applyFeatureTransforms(targetDir, features);
+}
+
+async function applyFeatureTransforms(
+  targetDir: string,
+  features: FeatureOptions
+): Promise<void> {
+  const disabledFeatures: FeatureKey[] = [];
+  if (!features.testing) disabledFeatures.push('testing');
+  if (!features.admin) disabledFeatures.push('admin');
+  if (!features.uploads) disabledFeatures.push('uploads');
+
+  for (const relativePath of MARKER_FILES) {
+    const filePath = path.join(targetDir, relativePath);
+    if (await fs.pathExists(filePath)) {
+      let content = await fs.readFile(filePath, 'utf-8');
+      content = stripFeatureBlocks(content, disabledFeatures);
+      content = cleanEmptyLines(content);
+      await fs.writeFile(filePath, content);
+    }
+  }
+
+  if (!features.testing) {
+    await transformForNoTesting(targetDir);
+  }
+}
+
+async function transformForNoTesting(targetDir: string): Promise<void> {
+  const turboPath = path.join(targetDir, 'turbo.json');
+  if (await fs.pathExists(turboPath)) {
+    const content = await fs.readFile(turboPath, 'utf-8');
+    const turbo = JSON.parse(content);
+    delete turbo.tasks?.test;
+    delete turbo.tasks?.['test:unit'];
+    delete turbo.tasks?.['test:integration'];
+    delete turbo.tasks?.['test:watch'];
+    delete turbo.tasks?.['test:coverage'];
+    await fs.writeFile(turboPath, JSON.stringify(turbo, null, 2) + '\n');
+  }
+
+  const huskyPath = path.join(targetDir, '.husky/pre-push');
+  if (await fs.pathExists(huskyPath)) {
+    await fs.writeFile(huskyPath, 'pnpm typecheck\n');
   }
 }
