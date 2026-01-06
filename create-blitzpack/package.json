@@ -1,6 +1,6 @@
 {
   "name": "create-blitzpack",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Create a new Blitzpack project - full-stack TypeScript monorepo with Next.js and Fastify",
   "type": "module",
   "bin": {

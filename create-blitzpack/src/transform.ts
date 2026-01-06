@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import {
+  type FeatureKey,
   type FeatureOptions,
   REPLACEABLE_FILES,
   type TemplateVariables,
@@ -28,6 +29,54 @@ const TESTING_ROOT_DEVDEPS = [
 const TESTING_APP_DEVDEPS = ['vitest', 'vite-tsconfig-paths'];
 
 const UPLOADS_API_DEPS = ['@aws-sdk/client-s3', 'sharp'];
+
+const MARKER_FILES = [
+  'apps/api/src/app.ts',
+  'apps/api/src/plugins/services.ts',
+  'apps/api/prisma/schema.prisma',
+];
+
+function stripFeatureBlocks(
+  content: string,
+  disabledFeatures: FeatureKey[]
+): string {
+  const lines = content.split('\n');
+  const result: string[] = [];
+  let skipUntilEnd = false;
+  let currentFeature: string | null = null;
+
+  for (const line of lines) {
+    const featureStart = line.match(/\/\/\s*@feature\s+(\w+)/);
+    const featureEnd = line.match(/\/\/\s*@endfeature/);
+
+    if (featureStart) {
+      const feature = featureStart[1] as FeatureKey;
+      if (disabledFeatures.includes(feature)) {
+        skipUntilEnd = true;
+        currentFeature = feature;
+      }
+      continue;
+    }
+
+    if (featureEnd) {
+      if (skipUntilEnd) {
+        skipUntilEnd = false;
+        currentFeature = null;
+      }
+      continue;
+    }
+
+    if (!skipUntilEnd) {
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
+}
+
+function cleanEmptyLines(content: string): string {
+  return content.replace(/\n{3,}/g, '\n\n');
+}
 
 function transformPackageJson(
   content: string,
@@ -198,14 +247,23 @@ async function applyFeatureTransforms(
   targetDir: string,
   features: FeatureOptions
 ): Promise<void> {
+  const disabledFeatures: FeatureKey[] = [];
+  if (!features.testing) disabledFeatures.push('testing');
+  if (!features.admin) disabledFeatures.push('admin');
+  if (!features.uploads) disabledFeatures.push('uploads');
+
+  for (const relativePath of MARKER_FILES) {
+    const filePath = path.join(targetDir, relativePath);
+    if (await fs.pathExists(filePath)) {
+      let content = await fs.readFile(filePath, 'utf-8');
+      content = stripFeatureBlocks(content, disabledFeatures);
+      content = cleanEmptyLines(content);
+      await fs.writeFile(filePath, content);
+    }
+  }
+
   if (!features.testing) {
     await transformForNoTesting(targetDir);
-  }
-  if (!features.admin) {
-    await transformForNoAdmin(targetDir);
-  }
-  if (!features.uploads) {
-    await transformForNoUploads(targetDir);
   }
 }
 
@@ -225,133 +283,5 @@ async function transformForNoTesting(targetDir: string): Promise<void> {
   const huskyPath = path.join(targetDir, '.husky/pre-push');
   if (await fs.pathExists(huskyPath)) {
     await fs.writeFile(huskyPath, 'pnpm typecheck\n');
-  }
-}
-
-async function transformForNoAdmin(targetDir: string): Promise<void> {
-  const appPath = path.join(targetDir, 'apps/api/src/app.ts');
-  if (await fs.pathExists(appPath)) {
-    let content = await fs.readFile(appPath, 'utf-8');
-
-    content = content.replace(
-      /import { metricsService } from '@\/services\/metrics\.service';\n/,
-      ''
-    );
-    content = content.replace(
-      /const { default: statsRoutes } = await import\('@\/routes\/stats\.js'\);\n/,
-      ''
-    );
-    content = content.replace(
-      /const { default: metricsRoutes } = await import\('@\/routes\/metrics\.js'\);\n/,
-      ''
-    );
-    content = content.replace(
-      /const { default: adminSessionsRoutes } = await import\(\n\s*'@\/routes\/admin-sessions\.js'\n\s*\);\n/,
-      ''
-    );
-    content = content.replace(/metricsService\.start\(\);\n\n/, '');
-    content = content.replace(
-      /\s*metricsService\.recordRequest\(responseTime, reply\.statusCode\);\n/,
-      ''
-    );
-    content = content.replace(/\s*await app\.register\(statsRoutes\);/g, '');
-    content = content.replace(/\s*await app\.register\(metricsRoutes\);/g, '');
-    content = content.replace(
-      /\s*await app\.register\(adminSessionsRoutes\);/g,
-      ''
-    );
-
-    await fs.writeFile(appPath, content);
-  }
-
-  const servicesPath = path.join(targetDir, 'apps/api/src/plugins/services.ts');
-  if (await fs.pathExists(servicesPath)) {
-    let content = await fs.readFile(servicesPath, 'utf-8');
-
-    content = content.replace(
-      /import { StatsService } from '@\/services\/stats\.service';\n/,
-      ''
-    );
-    content = content.replace(
-      /\s*const statsService = new StatsService\(app\.prisma, app\.logger\);/,
-      ''
-    );
-    content = content.replace(
-      /\s*app\.decorate\('statsService', statsService\);/,
-      ''
-    );
-    content = content.replace(/\s*statsService: StatsService;/, '');
-
-    await fs.writeFile(servicesPath, content);
-  }
-}
-
-async function transformForNoUploads(targetDir: string): Promise<void> {
-  const appPath = path.join(targetDir, 'apps/api/src/app.ts');
-  if (await fs.pathExists(appPath)) {
-    let content = await fs.readFile(appPath, 'utf-8');
-
-    content = content.replace(
-      /const { default: uploadsRoutes } = await import\('@\/routes\/uploads\.js'\);\n/,
-      ''
-    );
-    content = content.replace(
-      /const { default: uploadsServeRoutes } = await import\(\n\s*'@\/routes\/uploads-serve\.js'\n\s*\);\n/,
-      ''
-    );
-    content = content.replace(
-      /await app\.register\(uploadsServeRoutes\);\n\n/,
-      ''
-    );
-    content = content.replace(/\s*await app\.register\(uploadsRoutes\);/g, '');
-
-    await fs.writeFile(appPath, content);
-  }
-
-  const servicesPath = path.join(targetDir, 'apps/api/src/plugins/services.ts');
-  if (await fs.pathExists(servicesPath)) {
-    let content = await fs.readFile(servicesPath, 'utf-8');
-
-    content = content.replace(
-      /import { FileStorageService } from '@\/services\/file-storage\.service';\n/,
-      ''
-    );
-    content = content.replace(
-      /import { UploadsService } from '@\/services\/uploads\.service';\n/,
-      ''
-    );
-    content = content.replace(
-      /\s*const fileStorageService = new FileStorageService\(env, app\.logger\);/,
-      ''
-    );
-    content = content.replace(
-      /\s*const uploadsService = new UploadsService\(\n\s*app\.prisma,\n\s*fileStorageService,\n\s*app\.logger\n\s*\);/,
-      ''
-    );
-    content = content.replace(
-      /\s*app\.decorate\('fileStorageService', fileStorageService\);/,
-      ''
-    );
-    content = content.replace(
-      /\s*app\.decorate\('uploadsService', uploadsService\);/,
-      ''
-    );
-    content = content.replace(/\s*fileStorageService: FileStorageService;/, '');
-    content = content.replace(/\s*uploadsService: UploadsService;/, '');
-
-    await fs.writeFile(servicesPath, content);
-  }
-
-  const schemaPath = path.join(targetDir, 'apps/api/prisma/schema.prisma');
-  if (await fs.pathExists(schemaPath)) {
-    let content = await fs.readFile(schemaPath, 'utf-8');
-
-    content = content.replace(/\s*uploads\s+Upload\[\]/, '');
-    content = content.replace(
-      /\n\nmodel Upload \{[\s\S]*?@@map\("uploads"\)\n\}/,
-      ''
-    );
-
-    await fs.writeFile(schemaPath, content);
   }
 }

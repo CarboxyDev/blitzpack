@@ -15,7 +15,9 @@ import {
 import { loadEnv } from '@/config/env';
 import type { RateLimitRole } from '@/config/rate-limit';
 import { RATE_LIMIT_CONFIG } from '@/config/rate-limit';
+// @feature admin
 import { metricsService } from '@/services/metrics.service';
+// @endfeature
 
 const env = loadEnv();
 
@@ -216,7 +218,9 @@ app.addHook('onRequest', async (request) => {
 app.addHook('onResponse', async (request, reply) => {
   try {
     const responseTime = reply.elapsedTime;
+    // @feature admin
     metricsService.recordRequest(responseTime, reply.statusCode);
+    // @endfeature
 
     const statusCode = reply.statusCode;
     const isError = statusCode >= 400;
@@ -343,23 +347,26 @@ app.get('/health', async (request, reply) => {
 const { default: usersRoutes } = await import('@/routes/users.js');
 const { default: sessionsRoutes } = await import('@/routes/sessions.js');
 const { default: passwordRoutes } = await import('@/routes/password.js');
-const { default: verificationRoutes } = await import(
-  '@/routes/verification.js'
-);
+const { default: verificationRoutes } =
+  await import('@/routes/verification.js');
+// @feature uploads
 const { default: uploadsRoutes } = await import('@/routes/uploads.js');
-const { default: uploadsServeRoutes } = await import(
-  '@/routes/uploads-serve.js'
-);
+const { default: uploadsServeRoutes } =
+  await import('@/routes/uploads-serve.js');
+// @endfeature
 const { default: accountsRoutes } = await import('@/routes/accounts.js');
+// @feature admin
 const { default: statsRoutes } = await import('@/routes/stats.js');
 const { default: metricsRoutes } = await import('@/routes/metrics.js');
-const { default: adminSessionsRoutes } = await import(
-  '@/routes/admin-sessions.js'
-);
+const { default: adminSessionsRoutes } =
+  await import('@/routes/admin-sessions.js');
 
 metricsService.start();
+// @endfeature
 
+// @feature uploads
 await app.register(uploadsServeRoutes);
+// @endfeature
 
 await app.register(
   async (app) => {
@@ -367,11 +374,15 @@ await app.register(
     await app.register(sessionsRoutes);
     await app.register(passwordRoutes);
     await app.register(verificationRoutes);
+    // @feature uploads
     await app.register(uploadsRoutes);
+    // @endfeature
     await app.register(accountsRoutes);
+    // @feature admin
     await app.register(statsRoutes);
     await app.register(metricsRoutes);
     await app.register(adminSessionsRoutes);
+    // @endfeature
   },
   { prefix: '/api' }
 );
