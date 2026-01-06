@@ -2,6 +2,7 @@ import { ThemeToggle } from '@repo/packages-ui/theme-toggle';
 import React from 'react';
 
 import { GitHubStarButton } from '@/components/github-star-button';
+import { ExploreStructureSection } from '@/components/landing/explore-structure-section';
 import { FAQSection } from '@/components/landing/faq-section';
 import { FeaturesSection } from '@/components/landing/features-section';
 import { Footer } from '@/components/landing/footer';
@@ -38,6 +39,10 @@ export default function Home() {
 
       <SectionContainer>
         <IncludedSection />
+      </SectionContainer>
+
+      <SectionContainer>
+        <ExploreStructureSection />
       </SectionContainer>
 
       <SectionContainer id="quick-start">
