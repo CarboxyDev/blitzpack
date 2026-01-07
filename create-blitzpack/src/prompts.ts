@@ -87,18 +87,59 @@ export async function getProjectOptions(
 }
 
 async function promptFeatureSelection(): Promise<FeatureOptions | null> {
+  let cancelled = false;
+
+  const { setupType } = await prompts(
+    {
+      type: 'select',
+      name: 'setupType',
+      message: 'Setup type:',
+      choices: [
+        {
+          title: 'Recommended',
+          description: 'all features included',
+          value: 'recommended',
+        },
+        {
+          title: 'Customize',
+          description: 'choose features',
+          value: 'customize',
+        },
+      ],
+      initial: 0,
+      hint: '- Use arrow-keys, Enter to submit',
+    },
+    {
+      onCancel: () => {
+        cancelled = true;
+      },
+    }
+  );
+
+  if (cancelled) {
+    return null;
+  }
+
+  if (setupType === 'recommended') {
+    return {
+      testing: true,
+      admin: true,
+      uploads: true,
+    };
+  }
+
   const featureChoices = OPTIONAL_FEATURES.map((feature) => ({
-    title: `${feature.name} ${chalk.dim(`(${feature.description})`)}`,
+    title: feature.name,
+    description: feature.description,
     value: feature.key,
-    selected: true,
+    selected: false,
   }));
 
-  let cancelled = false;
   const { selectedFeatures } = await prompts(
     {
       type: 'multiselect',
       name: 'selectedFeatures',
-      message: 'Include optional features:',
+      message: 'Select features to include:',
       choices: featureChoices,
       hint: '- Space to toggle, Enter to confirm',
       instructions: false,

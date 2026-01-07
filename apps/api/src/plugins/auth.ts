@@ -1,12 +1,24 @@
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins';
+import { createAccessControl } from 'better-auth/plugins/access';
+import { adminAc, defaultStatements } from 'better-auth/plugins/admin/access';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
 
 import { loadEnv } from '@/config/env.js';
 import { RATE_LIMIT_CONFIG } from '@/config/rate-limit.js';
 import { type PrismaClient } from '@/generated/client/client.js';
+
+const ac = createAccessControl(defaultStatements);
+
+const adminRole = ac.newRole({
+  ...adminAc.statements,
+});
+
+const superAdminRole = ac.newRole({
+  ...adminAc.statements,
+});
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -91,8 +103,12 @@ const authPlugin: FastifyPluginAsync = async (app) => {
     socialProviders,
     plugins: [
       admin({
+        ac,
+        roles: {
+          admin: adminRole,
+          super_admin: superAdminRole,
+        },
         defaultRole: 'user',
-        adminRoles: ['admin', 'super_admin'],
       }),
     ],
   });
