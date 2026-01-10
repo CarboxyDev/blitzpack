@@ -15,8 +15,8 @@ import { transformFiles } from '../transform.js';
 import { printError, printHeader, printSuccess } from '../utils.js';
 
 const ENV_FILES = [
-  { from: 'apps/web/.env.local.example', to: 'apps/web/.env.local' },
-  { from: 'apps/api/.env.local.example', to: 'apps/api/.env.local' },
+  { from: 'apps/web/.env.example', to: 'apps/web/.env.local' },
+  { from: 'apps/api/.env.example', to: 'apps/api/.env.local' },
 ];
 
 async function copyEnvFiles(targetDir: string): Promise<void> {

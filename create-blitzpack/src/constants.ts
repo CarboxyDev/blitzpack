@@ -15,7 +15,7 @@ export interface TemplateVariables {
 export const DEFAULT_DESCRIPTION =
   'A full-stack TypeScript monorepo built with Blitzpack';
 
-export type FeatureKey = 'testing' | 'admin' | 'uploads';
+export type FeatureKey = 'testing' | 'admin' | 'uploads' | 'deployment';
 
 export interface Feature {
   key: FeatureKey;
@@ -38,6 +38,11 @@ export const OPTIONAL_FEATURES: Feature[] = [
     key: 'uploads',
     name: 'File Uploads',
     description: 'S3 storage, upload routes, file components',
+  },
+  {
+    key: 'deployment',
+    name: 'Deployment',
+    description: 'Dockerfile, CI/CD workflows, production configs',
   },
 ];
 
@@ -82,10 +87,17 @@ export const FEATURE_EXCLUSIONS: Record<FeatureKey, string[]> = {
     'packages/ui/src/file-upload-input.tsx',
     'packages/types/src/upload.ts',
   ],
+  deployment: [
+    'Dockerfile',
+    'Dockerfile.web',
+    'docker-compose.prod.yml',
+    '.github',
+  ],
 };
 
 export interface FeatureOptions {
   testing: boolean;
   admin: boolean;
   uploads: boolean;
+  deployment: boolean;
 }
