@@ -460,6 +460,24 @@ const FILE_TREE: TreeNode[] = [
     highlight: true,
   },
   {
+    name: 'docker-compose.prod.yml',
+    type: 'file',
+    icon: 'config',
+    description: 'Full-stack production testing',
+  },
+  {
+    name: 'Dockerfile',
+    type: 'file',
+    icon: 'config',
+    description: 'API production image',
+  },
+  {
+    name: 'Dockerfile.web',
+    type: 'file',
+    icon: 'config',
+    description: 'Web production image',
+  },
+  {
     name: 'tsconfig.base.json',
     type: 'file',
     icon: 'json',
