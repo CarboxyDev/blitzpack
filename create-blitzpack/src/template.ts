@@ -11,13 +11,7 @@ import {
 
 const GITHUB_REPO = 'github:CarboxyDev/blitzpack';
 
-const POST_DOWNLOAD_EXCLUDES = [
-  'create-blitzpack',
-  '.github',
-  'apps/marketing',
-  'Dockerfile',
-  'docker-compose.prod.yml',
-];
+const POST_DOWNLOAD_EXCLUDES = ['create-blitzpack', 'apps/marketing'];
 
 function getFeatureExclusions(features: FeatureOptions): string[] {
   const exclusions: string[] = [];

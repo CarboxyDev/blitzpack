@@ -125,6 +125,7 @@ async function promptFeatureSelection(): Promise<FeatureOptions | null> {
       testing: true,
       admin: true,
       uploads: true,
+      deployment: true,
     };
   }
 
@@ -160,6 +161,7 @@ async function promptFeatureSelection(): Promise<FeatureOptions | null> {
     testing: selected.includes('testing'),
     admin: selected.includes('admin'),
     uploads: selected.includes('uploads'),
+    deployment: selected.includes('deployment'),
   };
 }
 
