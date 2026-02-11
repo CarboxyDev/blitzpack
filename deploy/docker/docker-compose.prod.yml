@@ -2,12 +2,12 @@
 # Test your production Docker build locally before deploying to Railway
 #
 # Usage:
-#   docker-compose -f docker-compose.prod.yml up --build
-#   docker-compose -f docker-compose.prod.yml down
-#   docker-compose -f docker-compose.prod.yml down -v  # Remove volumes
+#   docker compose -f deploy/docker/docker-compose.prod.yml up --build
+#   docker compose -f deploy/docker/docker-compose.prod.yml down
+#   docker compose -f deploy/docker/docker-compose.prod.yml down -v  # Remove volumes
 #
 # All values have sensible defaults. Override with environment variables:
-#   POSTGRES_PASSWORD=secret COOKIE_SECRET=xxx docker-compose -f docker-compose.prod.yml up
+#   POSTGRES_PASSWORD=secret COOKIE_SECRET=xxx docker compose -f deploy/docker/docker-compose.prod.yml up
 
 services:
   postgres:
@@ -33,8 +33,8 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     ports:
       - '${API_PORT:-8080}:8080'
@@ -64,8 +64,8 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: Dockerfile.web
+      context: ../..
+      dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
     restart: unless-stopped

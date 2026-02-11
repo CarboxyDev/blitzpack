@@ -80,6 +80,12 @@ function printDryRun(options: {
   console.log(
     `    ${featureStatus(options.features.uploads)} File Uploads ${chalk.dim('(S3 storage, upload routes)')}`
   );
+  console.log(
+    `    ${featureStatus(options.features.dockerDeploy)} Docker Deployment ${chalk.dim('(API/Web Dockerfiles, production compose)')}`
+  );
+  console.log(
+    `    ${featureStatus(options.features.ciCd)} CD Workflow ${chalk.dim('(GitHub Actions image build/push)')}`
+  );
   console.log();
   console.log(chalk.bold('  Would run:'));
   console.log();

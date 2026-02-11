@@ -15,7 +15,6 @@
 
 </div>
 
-
 ## Why Blitzpack?
 
 Most full-stack templates give you a folder structure and routing. Blitzpack gives you a complete, production-ready application with authentication, admin controls, API infrastructure, observability and several more battle-tested features. You get a solid frictionless foundation to build your next product on.
@@ -25,13 +24,11 @@ What normally takes 2-3 weeks of infrastructure work is ready in a single comman
 - **Truly Production-Ready**: Auth flows, rate limiting, structured logging, testing infrastructure and more are configured for production from day one.
 
 - **Built for Zero Friction**: Unified tooling, shared packages, monorepo structure and full TypeScript support ensures that all components work seamlessly together.
-  
 - **No Assembly Required**: Auth flows, email system, admin dashboard, and other core features are already wired up and ready to use. No more wasting time setting up from scratch.
 
 - **True full-stack type safety**: Zod schemas validate once, protect everywhere. From API requests to database queries to UI forms.
 
 - **Authentication Made Easy**: Login, Sign-up, Email verification, password reset, OAuth (Google/GitHub), role-based access control, session management, and user banning. All wired up and working. Not TODOs but actual implementations.
-  
 - **Modern UI out of the box** - You get beautiful components with shadcn/ui, Tailwind v4, dark/light mode, theme support and smooth animations.
 
 - **Hassle-Free Database** - Prisma ORM with PostgreSQL, easy migrations and Docker setup that just works.
@@ -45,6 +42,12 @@ pnpm create blitzpack
 ```
 
 The setup wizard will guide you through project creation and next steps. Make sure you have Docker installed and running on your machine.
+
+During setup, choose a profile:
+
+- **Recommended**: Full app features + Docker deployment assets + CD workflow.
+- **Platform-First**: Full app features, no deployment assets.
+- **Custom**: Pick app features and deployment options independently.
 
 **What's running after setup:**
 
@@ -88,6 +91,7 @@ The setup wizard will guide you through project creation and next steps. Make su
 blitzpack/
 ├── apps/
 │   ├── web/                   # Next.js frontend (port 3000)
+│   │   ├── Dockerfile         # Web container image (optional deployment)
 │   │   ├── src/
 │   │   │   ├── app/           # Pages and layouts
 │   │   │   ├── components/    # React components
@@ -97,6 +101,7 @@ blitzpack/
 │   │   └── public/            # Static assets
 │   │
 │   └── api/                   # Fastify API (port 8080)
+│       ├── Dockerfile         # API container image (optional deployment)
 │       ├── src/
 │       │   ├── routes/        # API endpoints
 │       │   ├── services/      # Business logic
@@ -112,7 +117,11 @@ blitzpack/
 │   ├── ui/                    # Shared UI components
 │   └── tailwind-config/       # Shared Tailwind configuration
 │
+├── deploy/
+│   └── docker/
+│       └── docker-compose.prod.yml  # Local production Docker stack (optional)
 ├── docker-compose.yml         # Development services (PostgreSQL)
+├── .github/workflows/cd.yml   # Optional CD pipeline for Docker image publishing
 ├── turbo.json                 # Turborepo configuration
 └── pnpm-workspace.yaml        # pnpm workspaces configuration
 ```
@@ -162,6 +171,7 @@ Optimized workflows and tooling:
 - **Git Hooks**: Pre-commit linting and formatting, pre-push type checking and testing.
 - **Turborepo**: Smart caching, parallel execution, and dependency tracking.
 - **Docker Compose**: PostgreSQL database containerized for consistent local development.
+- **Optional Deployment Assets**: Dockerfiles for API/Web plus CD workflow for image publishing.
 
 ### Email System
 

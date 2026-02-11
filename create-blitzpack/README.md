@@ -24,7 +24,16 @@ pnpm create blitzpack [project-name] [options]
 - **Web**: Next.js 16 + React 19 + Tailwind CSS v4 + shadcn/ui
 - **API**: Fastify 5 + Prisma 7 + PostgreSQL + Better Auth
 - **Monorepo**: Turborepo + pnpm workspaces
-- **Production-ready**: Auth, admin dashboard, logging, validation, testing, Docker
+- **Production-ready app stack**: Auth, admin dashboard, logging, validation, testing
+- **Optional deployment assets**: Dockerfiles + production compose + CD workflow
+
+## Setup Profiles
+
+The scaffold wizard supports three profiles:
+
+- **Recommended**: All app features plus Docker deployment assets and CD workflow.
+- **Platform-First**: All app features, without deployment assets.
+- **Custom**: Pick app features and deployment options independently.
 
 ## Requirements
 

@@ -2,9 +2,10 @@ import chalk from 'chalk';
 import prompts from 'prompts';
 
 import {
+  APP_FEATURES,
   DEFAULT_DESCRIPTION,
+  DEPLOYMENT_FEATURES,
   type FeatureOptions,
-  OPTIONAL_FEATURES,
 } from './constants.js';
 import { isDockerRunning } from './docker.js';
 import { getCurrentDirName, toSlug, validateProjectName } from './utils.js';
@@ -93,16 +94,21 @@ async function promptFeatureSelection(): Promise<FeatureOptions | null> {
     {
       type: 'select',
       name: 'setupType',
-      message: 'Setup type:',
+      message: 'Project profile:',
       choices: [
         {
           title: 'Recommended',
-          description: 'all features included',
+          description: 'all app features + Docker deploy assets + CD workflow',
           value: 'recommended',
         },
         {
-          title: 'Customize',
-          description: 'choose features',
+          title: 'Platform-First',
+          description: 'all app features, no deployment assets',
+          value: 'platform',
+        },
+        {
+          title: 'Custom',
+          description: 'choose app and deployment features',
           value: 'customize',
         },
       ],
@@ -125,23 +131,34 @@ async function promptFeatureSelection(): Promise<FeatureOptions | null> {
       testing: true,
       admin: true,
       uploads: true,
-      deployment: true,
+      dockerDeploy: true,
+      ciCd: true,
     };
   }
 
-  const featureChoices = OPTIONAL_FEATURES.map((feature) => ({
+  if (setupType === 'platform') {
+    return {
+      testing: true,
+      admin: true,
+      uploads: true,
+      dockerDeploy: false,
+      ciCd: false,
+    };
+  }
+
+  const appFeatureChoices = APP_FEATURES.map((feature) => ({
     title: feature.name,
     description: feature.description,
     value: feature.key,
-    selected: false,
+    selected: true,
   }));
 
-  const { selectedFeatures } = await prompts(
+  const { selectedAppFeatures } = await prompts(
     {
       type: 'multiselect',
-      name: 'selectedFeatures',
-      message: 'Select features to include:',
-      choices: featureChoices,
+      name: 'selectedAppFeatures',
+      message: 'Select app features:',
+      choices: appFeatureChoices,
       hint: '- Space to toggle, Enter to confirm',
       instructions: false,
     },
@@ -156,12 +173,54 @@ async function promptFeatureSelection(): Promise<FeatureOptions | null> {
     return null;
   }
 
-  const selected = selectedFeatures || [];
+  const deploymentFeatureChoices = DEPLOYMENT_FEATURES.map((feature) => ({
+    title: feature.name,
+    description: feature.description,
+    value: feature.key,
+    selected: false,
+  }));
+
+  const { selectedDeploymentFeatures } = await prompts(
+    {
+      type: 'multiselect',
+      name: 'selectedDeploymentFeatures',
+      message: 'Select deployment options (optional):',
+      choices: deploymentFeatureChoices,
+      hint: '- Space to toggle, Enter to confirm',
+      instructions: false,
+    },
+    {
+      onCancel: () => {
+        cancelled = true;
+      },
+    }
+  );
+
+  if (cancelled) {
+    return null;
+  }
+
+  const selectedApp = selectedAppFeatures || [];
+  const selectedDeployment = selectedDeploymentFeatures || [];
+  const includesCiCd = selectedDeployment.includes('ciCd');
+  const includesDockerDeploy =
+    selectedDeployment.includes('dockerDeploy') || includesCiCd;
+
+  if (includesCiCd && !selectedDeployment.includes('dockerDeploy')) {
+    console.log();
+    console.log(
+      chalk.dim(
+        '  ℹ CD workflow requires Docker deployment assets, enabling both.'
+      )
+    );
+  }
+
   return {
-    testing: selected.includes('testing'),
-    admin: selected.includes('admin'),
-    uploads: selected.includes('uploads'),
-    deployment: selected.includes('deployment'),
+    testing: selectedApp.includes('testing'),
+    admin: selectedApp.includes('admin'),
+    uploads: selectedApp.includes('uploads'),
+    dockerDeploy: includesDockerDeploy,
+    ciCd: includesCiCd,
   };
 }
 
@@ -185,7 +244,8 @@ export async function promptAutomaticSetup(): Promise<boolean> {
   const { runSetup } = await prompts({
     type: 'confirm',
     name: 'runSetup',
-    message: 'Run initial setup now? (docker compose + database migrations)',
+    message:
+      'Run local setup now? (start PostgreSQL with Docker + run migrations)',
     initial: true,
   });
 

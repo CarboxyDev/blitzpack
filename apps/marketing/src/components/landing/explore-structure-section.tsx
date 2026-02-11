@@ -43,6 +43,12 @@ const FILE_TREE: TreeNode[] = [
         description: 'Next.js frontend',
         children: [
           {
+            name: 'Dockerfile',
+            type: 'file',
+            icon: 'config',
+            description: 'Web production image (optional)',
+          },
+          {
             name: 'src',
             type: 'folder',
             children: [
@@ -139,6 +145,12 @@ const FILE_TREE: TreeNode[] = [
         type: 'folder',
         description: 'Fastify backend with Prisma',
         children: [
+          {
+            name: 'Dockerfile',
+            type: 'file',
+            icon: 'config',
+            description: 'API production image (optional)',
+          },
           {
             name: 'src',
             type: 'folder',
@@ -460,22 +472,23 @@ const FILE_TREE: TreeNode[] = [
     highlight: true,
   },
   {
-    name: 'docker-compose.prod.yml',
-    type: 'file',
-    icon: 'config',
-    description: 'Full-stack production testing',
-  },
-  {
-    name: 'Dockerfile',
-    type: 'file',
-    icon: 'config',
-    description: 'API production image',
-  },
-  {
-    name: 'Dockerfile.web',
-    type: 'file',
-    icon: 'config',
-    description: 'Web production image',
+    name: 'deploy',
+    type: 'folder',
+    description: 'Optional deployment assets',
+    children: [
+      {
+        name: 'docker',
+        type: 'folder',
+        children: [
+          {
+            name: 'docker-compose.prod.yml',
+            type: 'file',
+            icon: 'config',
+            description: 'Full-stack production testing',
+          },
+        ],
+      },
+    ],
   },
   {
     name: 'tsconfig.base.json',
