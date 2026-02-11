@@ -7,7 +7,7 @@
 #   docker compose -f deploy/docker/docker-compose.prod.yml down -v  # Remove volumes
 #
 # All values have sensible defaults. Override with environment variables:
-#   POSTGRES_PASSWORD=secret COOKIE_SECRET=xxx docker compose -f deploy/docker/docker-compose.prod.yml up
+#   POSTGRES_PASSWORD=secret COOKIE_SECRET=xxx BETTER_AUTH_SECRET=xxx BETTER_AUTH_URL=http://localhost:8080 docker compose -f deploy/docker/docker-compose.prod.yml up
 
 services:
   postgres:
@@ -43,6 +43,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_prod_password}@postgres:5432/${POSTGRES_DB:-app_prod}
       API_URL: ${API_URL:-http://localhost:8080}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-this-to-a-long-random-secret-min-32-chars}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:8080}
       PORT: 8080
       LOG_LEVEL: ${LOG_LEVEL:-normal}
       COOKIE_SECRET: ${COOKIE_SECRET:-your-secret-key-change-in-production}
@@ -61,6 +63,8 @@ services:
       timeout: 3s
       start_period: 40s
       retries: 3
+    volumes:
+      - api_uploads_data:/app/apps/api/public/uploads
 
   web:
     build:
@@ -91,3 +95,4 @@ services:
 
 volumes:
   postgres_prod_data:
+  api_uploads_data:
