@@ -1,11 +1,22 @@
+import {
+  cancel,
+  confirm,
+  isCancel,
+  multiselect,
+  note,
+  select,
+  text,
+} from '@clack/prompts';
 import chalk from 'chalk';
-import prompts from 'prompts';
 
 import {
   APP_FEATURES,
   DEFAULT_DESCRIPTION,
   DEPLOYMENT_FEATURES,
+  type FeatureKey,
   type FeatureOptions,
+  PROJECT_PROFILES,
+  type ProjectProfileKey,
 } from './constants.js';
 import { isDockerRunning } from './docker.js';
 import { getCurrentDirName, toSlug, validateProjectName } from './utils.js';
@@ -20,56 +31,123 @@ export interface ProjectOptions {
   features: FeatureOptions;
 }
 
-export async function getProjectOptions(
-  providedName?: string,
-  flags: { skipGit?: boolean; skipInstall?: boolean } = {}
-): Promise<ProjectOptions | null> {
-  const questions: prompts.PromptObject[] = [];
+interface WizardState {
+  projectNameInput: string;
+  projectDescription: string;
+  profileKey: ProjectProfileKey;
+  selectedFeatures: FeatureKey[];
+}
 
-  if (!providedName) {
-    questions.push({
-      type: 'text',
-      name: 'projectName',
-      message: 'Project name:',
-      initial: 'my-app',
-      validate: (value: string) => {
-        const result = validateProjectName(value);
-        if (!result.valid) {
-          return result.problems?.[0] || 'Invalid project name';
-        }
-        return true;
-      },
-    });
-  }
+type WizardStage = 'details' | 'profile' | 'features' | 'review';
 
-  questions.push({
-    type: 'text',
-    name: 'projectDescription',
-    message: 'Project description:',
-    initial: DEFAULT_DESCRIPTION,
-  });
+const FEATURE_LABELS: Record<FeatureKey, string> = {
+  testing: 'Testing',
+  admin: 'Admin Dashboard',
+  uploads: 'File Uploads',
+  dockerDeploy: 'Docker deploy assets',
+  ciCd: 'CD workflow',
+};
 
-  let cancelled = false;
-  const response = await prompts(questions, {
-    onCancel: () => {
-      cancelled = true;
-    },
-  });
+const FEATURE_HINTS: Record<FeatureKey, string> = {
+  testing: 'Vitest, integration tests, and test helpers',
+  admin: 'Admin routes, dashboard views, and management hooks',
+  uploads: 'Upload APIs, storage service, and UI upload components',
+  dockerDeploy: 'API/Web Dockerfiles and production Docker Compose',
+  ciCd: 'GitHub Actions workflow for image build and publish',
+};
 
-  if (cancelled) {
+function handleCancelledPrompt<T>(value: T | symbol): T | null {
+  if (isCancel(value)) {
+    cancel('Setup cancelled.');
     return null;
   }
+  return value as T;
+}
 
-  const projectName = providedName || response.projectName;
+function getEnabledFeatureKeys(features: FeatureOptions): FeatureKey[] {
+  return (Object.keys(features) as FeatureKey[]).filter((key) => features[key]);
+}
+
+function deriveProfileFeatureSelection(
+  profileKey: ProjectProfileKey
+): FeatureKey[] {
+  const profile =
+    PROJECT_PROFILES.find((item) => item.key === profileKey) ??
+    PROJECT_PROFILES[0];
+  return getEnabledFeatureKeys(profile.defaultFeatures);
+}
+
+function resolveFeatureSelection(selected: FeatureKey[]): FeatureKey[] {
+  const unique = Array.from(new Set(selected));
+  const hasCiCd = unique.includes('ciCd');
+  const hasDockerDeploy = unique.includes('dockerDeploy');
+
+  if (hasCiCd && !hasDockerDeploy) {
+    return [...unique.filter((key) => key !== 'dockerDeploy'), 'dockerDeploy'];
+  }
+
+  return unique;
+}
+
+function buildFeatureOptions(selectedFeatures: FeatureKey[]): FeatureOptions {
+  const normalized = resolveFeatureSelection(selectedFeatures);
+
+  return {
+    testing: normalized.includes('testing'),
+    admin: normalized.includes('admin'),
+    uploads: normalized.includes('uploads'),
+    dockerDeploy: normalized.includes('dockerDeploy'),
+    ciCd: normalized.includes('ciCd'),
+  };
+}
+
+function printWizardStep(step: number, total: number, title: string): void {
+  console.log();
+  console.log(chalk.bold(`  Step ${step}/${total}`), chalk.dim(title));
+  console.log();
+}
+
+function getStepTotal(profileKey: ProjectProfileKey): number {
+  return profileKey === 'modular' ? 4 : 2;
+}
+
+function printMultiselectControls(): void {
+  console.log(
+    chalk.dim('  Controls: ↑/↓ navigate • Space toggle • Enter confirm')
+  );
+  console.log();
+}
+
+function printConfigurationSummary(
+  profileName: string,
+  features: FeatureOptions
+): void {
+  const lines = [
+    `${chalk.dim('Profile')}: ${profileName}`,
+    `${chalk.dim('Testing')}: ${features.testing ? 'yes' : 'no'}`,
+    `${chalk.dim('Admin dashboard')}: ${features.admin ? 'yes' : 'no'}`,
+    `${chalk.dim('File uploads')}: ${features.uploads ? 'yes' : 'no'}`,
+    `${chalk.dim('Docker deploy assets')}: ${features.dockerDeploy ? 'yes' : 'no'}`,
+    `${chalk.dim('CD workflow')}: ${features.ciCd ? 'yes' : 'no'}`,
+  ];
+
+  note(lines.join('\n'), chalk.cyan('Configuration summary'));
+}
+
+function finalizeOptions(
+  state: WizardState,
+  providedName: string | undefined,
+  flags: { skipGit?: boolean; skipInstall?: boolean }
+): ProjectOptions | null {
+  const projectName = providedName || state.projectNameInput;
   const validation = validateProjectName(projectName);
 
   if (!validation.valid) {
-    console.log(`Invalid project name: ${validation.problems?.[0]}`);
-    return null;
-  }
-
-  const features = await promptFeatureSelection();
-  if (!features) {
+    console.log();
+    console.log(
+      chalk.red('  ✖'),
+      validation.problems?.[0] ?? 'Invalid project name'
+    );
     return null;
   }
 
@@ -79,149 +157,252 @@ export async function getProjectOptions(
   return {
     projectName: actualProjectName,
     projectSlug: toSlug(actualProjectName),
-    projectDescription: response.projectDescription || DEFAULT_DESCRIPTION,
+    projectDescription: state.projectDescription || DEFAULT_DESCRIPTION,
     skipGit: flags.skipGit || false,
     skipInstall: flags.skipInstall || false,
     useCurrentDir,
-    features,
+    features: buildFeatureOptions(state.selectedFeatures),
   };
 }
 
-async function promptFeatureSelection(): Promise<FeatureOptions | null> {
-  let cancelled = false;
+export async function getProjectOptions(
+  providedName?: string,
+  flags: { skipGit?: boolean; skipInstall?: boolean } = {}
+): Promise<ProjectOptions | null> {
+  const initialProjectName = providedName || 'my-app';
+  const initialProfileKey: ProjectProfileKey = 'recommended';
 
-  const { setupType } = await prompts(
-    {
-      type: 'select',
-      name: 'setupType',
-      message: 'Project profile:',
-      choices: [
-        {
-          title: 'Recommended',
-          description: 'all app features + Docker deploy assets + CD workflow',
-          value: 'recommended',
-        },
-        {
-          title: 'Platform-First',
-          description: 'all app features, no deployment assets',
-          value: 'platform',
-        },
-        {
-          title: 'Custom',
-          description: 'choose app and deployment features',
-          value: 'customize',
-        },
-      ],
-      initial: 0,
-      hint: '- Use arrow-keys, Enter to submit',
-    },
-    {
-      onCancel: () => {
-        cancelled = true;
-      },
-    }
-  );
-
-  if (cancelled) {
-    return null;
-  }
-
-  if (setupType === 'recommended') {
-    return {
-      testing: true,
-      admin: true,
-      uploads: true,
-      dockerDeploy: true,
-      ciCd: true,
-    };
-  }
-
-  if (setupType === 'platform') {
-    return {
-      testing: true,
-      admin: true,
-      uploads: true,
-      dockerDeploy: false,
-      ciCd: false,
-    };
-  }
-
-  const appFeatureChoices = APP_FEATURES.map((feature) => ({
-    title: feature.name,
-    description: feature.description,
-    value: feature.key,
-    selected: true,
-  }));
-
-  const { selectedAppFeatures } = await prompts(
-    {
-      type: 'multiselect',
-      name: 'selectedAppFeatures',
-      message: 'Select app features:',
-      choices: appFeatureChoices,
-      hint: '- Space to toggle, Enter to confirm',
-      instructions: false,
-    },
-    {
-      onCancel: () => {
-        cancelled = true;
-      },
-    }
-  );
-
-  if (cancelled) {
-    return null;
-  }
-
-  const deploymentFeatureChoices = DEPLOYMENT_FEATURES.map((feature) => ({
-    title: feature.name,
-    description: feature.description,
-    value: feature.key,
-    selected: false,
-  }));
-
-  const { selectedDeploymentFeatures } = await prompts(
-    {
-      type: 'multiselect',
-      name: 'selectedDeploymentFeatures',
-      message: 'Select deployment options (optional):',
-      choices: deploymentFeatureChoices,
-      hint: '- Space to toggle, Enter to confirm',
-      instructions: false,
-    },
-    {
-      onCancel: () => {
-        cancelled = true;
-      },
-    }
-  );
-
-  if (cancelled) {
-    return null;
-  }
-
-  const selectedApp = selectedAppFeatures || [];
-  const selectedDeployment = selectedDeploymentFeatures || [];
-  const includesCiCd = selectedDeployment.includes('ciCd');
-  const includesDockerDeploy =
-    selectedDeployment.includes('dockerDeploy') || includesCiCd;
-
-  if (includesCiCd && !selectedDeployment.includes('dockerDeploy')) {
-    console.log();
-    console.log(
-      chalk.dim(
-        '  ℹ CD workflow requires Docker deployment assets, enabling both.'
-      )
-    );
-  }
-
-  return {
-    testing: selectedApp.includes('testing'),
-    admin: selectedApp.includes('admin'),
-    uploads: selectedApp.includes('uploads'),
-    dockerDeploy: includesDockerDeploy,
-    ciCd: includesCiCd,
+  const state: WizardState = {
+    projectNameInput: initialProjectName,
+    projectDescription: DEFAULT_DESCRIPTION,
+    profileKey: initialProfileKey,
+    selectedFeatures: deriveProfileFeatureSelection(initialProfileKey),
   };
+
+  let stage: WizardStage = 'details';
+
+  while (true) {
+    if (stage === 'details') {
+      printWizardStep(1, getStepTotal(state.profileKey), 'Project details');
+
+      if (!providedName) {
+        const projectNameInput = handleCancelledPrompt(
+          await text({
+            message: chalk.cyan('Project name'),
+            initialValue: state.projectNameInput,
+            validate: (value) => {
+              if (typeof value !== 'string') {
+                return 'Project name is required';
+              }
+              const result = validateProjectName(value);
+              return result.valid
+                ? undefined
+                : (result.problems?.[0] ?? 'Invalid project name');
+            },
+          })
+        );
+        if (projectNameInput === null) {
+          return null;
+        }
+        state.projectNameInput = projectNameInput;
+      } else {
+        console.log(chalk.dim('  Project name:'), chalk.white(providedName));
+      }
+
+      const descriptionInput = handleCancelledPrompt(
+        await text({
+          message: chalk.cyan('Project description'),
+          initialValue: state.projectDescription,
+        })
+      );
+      if (descriptionInput === null) {
+        return null;
+      }
+      state.projectDescription = descriptionInput;
+      stage = 'profile';
+      continue;
+    }
+
+    if (stage === 'profile') {
+      printWizardStep(
+        2,
+        getStepTotal(state.profileKey),
+        'Choose a setup preset'
+      );
+
+      const profileAction = handleCancelledPrompt(
+        await select({
+          message: chalk.cyan('Setup preset'),
+          options: [
+            ...PROJECT_PROFILES.map((profile) => ({
+              value: profile.key,
+              label: profile.name,
+              hint: profile.description,
+            })),
+            {
+              value: '__back__',
+              label: 'Back',
+              hint: 'Return to project details',
+            },
+          ],
+          initialValue: state.profileKey,
+        })
+      );
+      if (profileAction === null) {
+        return null;
+      }
+
+      if (profileAction === '__back__') {
+        stage = 'details';
+        continue;
+      }
+
+      state.profileKey = profileAction as ProjectProfileKey;
+      state.selectedFeatures = deriveProfileFeatureSelection(state.profileKey);
+
+      if (state.profileKey !== 'modular') {
+        const result = finalizeOptions(state, providedName, flags);
+        if (!result) {
+          stage = 'details';
+          continue;
+        }
+        return result;
+      }
+
+      stage = 'features';
+      continue;
+    }
+
+    if (stage === 'features') {
+      const isModular = state.profileKey === 'modular';
+      printWizardStep(
+        3,
+        4,
+        isModular ? 'Select features' : 'Deployment options'
+      );
+
+      if (isModular) {
+        printMultiselectControls();
+
+        const selectedFeatures = handleCancelledPrompt(
+          await multiselect({
+            message: chalk.cyan('Select features'),
+            options: [...APP_FEATURES, ...DEPLOYMENT_FEATURES].map(
+              (feature) => ({
+                value: feature.key,
+                label: FEATURE_LABELS[feature.key],
+                hint: FEATURE_HINTS[feature.key],
+              })
+            ),
+            initialValues: state.selectedFeatures,
+            required: false,
+          })
+        );
+        if (selectedFeatures === null) {
+          return null;
+        }
+
+        state.selectedFeatures = resolveFeatureSelection(
+          selectedFeatures as FeatureKey[]
+        );
+
+        if (
+          state.selectedFeatures.includes('ciCd') &&
+          !selectedFeatures.includes('dockerDeploy')
+        ) {
+          console.log();
+          console.log(
+            chalk.dim(
+              '  ℹ CD workflow requires Docker deployment assets, enabling both.'
+            )
+          );
+        }
+      }
+
+      const nextAction = handleCancelledPrompt(
+        await select({
+          message: chalk.cyan('Continue'),
+          options: [
+            {
+              value: 'review',
+              label: 'Review configuration',
+            },
+            {
+              value: 'profile',
+              label: 'Back',
+              hint: 'Return to preset selection',
+            },
+          ],
+          initialValue: 'review',
+        })
+      );
+      if (nextAction === null) {
+        return null;
+      }
+
+      stage = nextAction as WizardStage;
+      continue;
+    }
+
+    const profile =
+      PROJECT_PROFILES.find((item) => item.key === state.profileKey) ??
+      PROJECT_PROFILES[0];
+    const options = finalizeOptions(state, providedName, flags);
+
+    if (!options) {
+      stage = 'details';
+      continue;
+    }
+    const features = options.features;
+
+    const reviewStep = state.profileKey === 'modular' ? 4 : 3;
+    printWizardStep(
+      reviewStep,
+      getStepTotal(state.profileKey),
+      'Review and confirm'
+    );
+    printConfigurationSummary(profile.name, features);
+
+    const reviewOptions = [
+      {
+        value: 'create',
+        label: 'Create project',
+      },
+      {
+        value: 'profile',
+        label: 'Edit preset',
+      },
+      {
+        value: 'details',
+        label: 'Edit project details',
+      },
+    ];
+
+    if (state.profileKey === 'modular') {
+      reviewOptions.splice(1, 0, {
+        value: 'features',
+        label: 'Edit features',
+      });
+    }
+
+    const reviewAction = handleCancelledPrompt(
+      await select({
+        message: chalk.cyan('Ready to scaffold?'),
+        options: reviewOptions,
+        initialValue: 'create',
+      })
+    );
+    if (reviewAction === null) {
+      return null;
+    }
+
+    if (reviewAction !== 'create') {
+      stage = reviewAction as WizardStage;
+      continue;
+    }
+
+    return options;
+  }
 }
 
 export async function promptAutomaticSetup(): Promise<boolean> {
@@ -241,13 +422,16 @@ export async function promptAutomaticSetup(): Promise<boolean> {
   }
 
   console.log();
-  const { runSetup } = await prompts({
-    type: 'confirm',
-    name: 'runSetup',
-    message:
-      'Run local setup now? (start PostgreSQL with Docker + run migrations)',
-    initial: true,
-  });
+  const runSetup = handleCancelledPrompt(
+    await confirm({
+      message: 'Run local setup now? (Docker PostgreSQL + database migrations)',
+      initialValue: true,
+    })
+  );
 
-  return runSetup || false;
+  if (runSetup === null) {
+    return false;
+  }
+
+  return runSetup;
 }

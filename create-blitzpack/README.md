@@ -31,9 +31,11 @@ pnpm create blitzpack [project-name] [options]
 
 The scaffold wizard supports three profiles:
 
-- **Recommended**: All app features plus Docker deployment assets and CD workflow.
-- **Platform-First**: All app features, without deployment assets.
-- **Custom**: Pick app features and deployment options independently.
+- **Recommended**: Core app with everything included.
+- **Platform-Agnostic**: Core app without dockerfiles.
+- **Modular**: Core app with features of your choice.
+
+Each profile is a setup path. The **Modular** path opens full feature customization before files are created.
 
 ## Requirements
 

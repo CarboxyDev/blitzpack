@@ -117,3 +117,51 @@ export interface FeatureOptions {
   dockerDeploy: boolean;
   ciCd: boolean;
 }
+
+export type ProjectProfileKey = 'recommended' | 'platformAgnostic' | 'modular';
+
+export interface ProjectProfile {
+  key: ProjectProfileKey;
+  name: string;
+  description: string;
+  defaultFeatures: FeatureOptions;
+}
+
+export const PROJECT_PROFILES: ProjectProfile[] = [
+  {
+    key: 'recommended',
+    name: 'Recommended',
+    description: 'Core app with everything included',
+    defaultFeatures: {
+      testing: true,
+      admin: true,
+      uploads: true,
+      dockerDeploy: true,
+      ciCd: true,
+    },
+  },
+  {
+    key: 'platformAgnostic',
+    name: 'Platform-Agnostic',
+    description: 'Core app without dockerfiles',
+    defaultFeatures: {
+      testing: true,
+      admin: true,
+      uploads: true,
+      dockerDeploy: false,
+      ciCd: false,
+    },
+  },
+  {
+    key: 'modular',
+    name: 'Modular',
+    description: 'Core app with features of your choice',
+    defaultFeatures: {
+      testing: false,
+      admin: false,
+      uploads: false,
+      dockerDeploy: false,
+      ciCd: false,
+    },
+  },
+];

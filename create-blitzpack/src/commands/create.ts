@@ -1,9 +1,9 @@
+import { confirm, isCancel } from '@clack/prompts';
 import chalk from 'chalk';
 import { spawn } from 'child_process';
 import fs from 'fs-extra';
-import ora from 'ora';
+import ora, { type Ora } from 'ora';
 import path from 'path';
-import prompts from 'prompts';
 
 import { runPreflightChecks } from '../checks.js';
 import type { FeatureOptions } from '../constants.js';
@@ -45,6 +45,42 @@ interface CreateFlags {
   skipGit?: boolean;
   skipInstall?: boolean;
   dryRun?: boolean;
+}
+
+function renderProgressBar(current: number, total: number): string {
+  const width = 28;
+  const clampedTotal = Math.max(total, 1);
+  const ratio = Math.min(Math.max(current / clampedTotal, 0), 1);
+  const filled = Math.round(width * ratio);
+  const empty = width - filled;
+  const filledBar = chalk.cyan('█'.repeat(filled));
+  const emptyBar = chalk.dim('░'.repeat(empty));
+  const percentage = `${Math.round(ratio * 100)}`.padStart(3, ' ');
+  return `[${filledBar}${emptyBar}] ${percentage}%`;
+}
+
+function renderStepTrack(step: number, total: number): string {
+  const segments: string[] = [];
+
+  for (let index = 1; index <= total; index++) {
+    if (index < step) {
+      segments.push(chalk.green('●'));
+    } else if (index === step) {
+      segments.push(chalk.cyan('◆'));
+    } else {
+      segments.push(chalk.dim('◇'));
+    }
+  }
+
+  return segments.join(chalk.dim('──'));
+}
+
+function printStepHeader(step: number, total: number, title: string): void {
+  const completed = step - 1;
+  console.log();
+  console.log(chalk.cyan(`  Step ${step}/${total}`), chalk.bold(title));
+  console.log(`  ${renderProgressBar(completed, total)}`);
+  console.log(`  ${renderStepTrack(step, total)}`);
 }
 
 function printDryRun(options: {
@@ -139,14 +175,12 @@ export async function create(
     const files = await fs.readdir(targetDir);
     if (files.length > 0) {
       if (options.useCurrentDir) {
-        const { confirm } = await prompts({
-          type: 'confirm',
-          name: 'confirm',
-          message: `Current directory is not empty. Continue?`,
-          initial: false,
+        const shouldContinue = await confirm({
+          message: 'Current directory is not empty. Continue?',
+          initialValue: false,
         });
 
-        if (!confirm) {
+        if (isCancel(shouldContinue) || !shouldContinue) {
           return;
         }
       } else {
@@ -156,13 +190,24 @@ export async function create(
     }
   }
 
-  const spinner = ora();
+  const shouldRunSetup = await promptAutomaticSetup();
+  const totalSteps =
+    2 +
+    (options.skipGit ? 0 : 1) +
+    (options.skipInstall ? 0 : 1) +
+    (shouldRunSetup ? 1 : 0);
+  let currentStep = 0;
+  let spinner: Ora | undefined;
 
   try {
-    spinner.start('Downloading template from GitHub...');
+    currentStep += 1;
+    printStepHeader(currentStep, totalSteps, 'Scaffold template');
+    spinner = ora('Downloading template from GitHub...').start();
     await downloadAndPrepareTemplate(targetDir, spinner, options.features);
 
-    spinner.start('Configuring project...');
+    currentStep += 1;
+    printStepHeader(currentStep, totalSteps, 'Configure project files');
+    spinner.start('Applying template transforms...');
     await transformFiles(
       targetDir,
       {
@@ -176,6 +221,8 @@ export async function create(
     spinner.succeed('Configured project');
 
     if (!options.skipGit && isGitInstalled()) {
+      currentStep += 1;
+      printStepHeader(currentStep, totalSteps, 'Initialize git repository');
       spinner.start('Initializing git repository...');
       const gitSuccess = initGit(targetDir);
       if (gitSuccess) {
@@ -183,9 +230,15 @@ export async function create(
       } else {
         spinner.warn('Failed to initialize git repository');
       }
+    } else if (!options.skipGit) {
+      currentStep += 1;
+      printStepHeader(currentStep, totalSteps, 'Initialize git repository');
+      spinner.warn('Skipped git initialization (git not installed)');
     }
 
     if (!options.skipInstall) {
+      currentStep += 1;
+      printStepHeader(currentStep, totalSteps, 'Install dependencies');
       spinner.start('Installing dependencies...');
       const success = await runInstall(targetDir);
       if (success) {
@@ -197,12 +250,11 @@ export async function create(
       }
     }
 
-    // Prompt for automatic setup
     let ranAutomaticSetup = false;
-    const shouldRunSetup = await promptAutomaticSetup();
 
     if (shouldRunSetup) {
-      console.log();
+      currentStep += 1;
+      printStepHeader(currentStep, totalSteps, 'Run local database setup');
       spinner.start('Starting PostgreSQL database...');
       const dockerSuccess = runDockerCompose(targetDir);
       if (dockerSuccess) {
@@ -231,7 +283,7 @@ export async function create(
       ranAutomaticSetup
     );
   } catch (error) {
-    spinner.fail();
+    spinner?.fail();
     printError(
       error instanceof Error ? error.message : 'Unknown error occurred'
     );
