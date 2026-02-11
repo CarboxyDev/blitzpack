@@ -55,10 +55,31 @@ jobs:
         env:
           DATABASE_URL: postgresql://user:pass@localhost:5432/db
 
+  scaffold-smoke:
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run scaffold smoke matrix
+        run: pnpm run smoke:create-blitzpack:ci
+
   # Tests and build run after lint/typecheck pass
   test:
     runs-on: ubuntu-latest
-    needs: [lint, typecheck]
+    needs: [lint, typecheck, scaffold-smoke]
 
     # PostgreSQL service for integration tests
     services:
@@ -111,7 +132,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: [lint, typecheck]
+    needs: [lint, typecheck, scaffold-smoke]
     steps:
       - uses: actions/checkout@v4
 

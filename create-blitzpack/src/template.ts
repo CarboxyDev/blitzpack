@@ -18,6 +18,13 @@ const POST_DOWNLOAD_EXCLUDES = [
   'docs/create-blitzpack-scaffolding-maintenance-plan.md',
   'pnpm-lock.yaml',
 ];
+const LOCAL_COPY_EXCLUDES = new Set([
+  '.git',
+  'node_modules',
+  '.pnpm-store',
+  '.turbo',
+  '.temp',
+]);
 
 function getFeatureExclusions(features: FeatureOptions): string[] {
   const exclusions: string[] = [];
@@ -42,6 +49,19 @@ async function cleanupExcludes(
   }
 }
 
+function shouldCopyFromLocalSource(
+  sourceDir: string,
+  currentPath: string
+): boolean {
+  const relativePath = path.relative(sourceDir, currentPath);
+  if (!relativePath || relativePath === '.') {
+    return true;
+  }
+
+  const segments = relativePath.split(path.sep);
+  return !segments.some((segment) => LOCAL_COPY_EXCLUDES.has(segment));
+}
+
 export async function downloadAndPrepareTemplate(
   targetDir: string,
   spinner: Ora,
@@ -62,6 +82,19 @@ export async function downloadAndPrepareTemplate(
 
   const files = await countFiles(targetDir);
   spinner.succeed(`Downloaded template (${files} files)`);
+}
+
+export async function prepareTemplateFromLocalSource(
+  sourceDir: string,
+  targetDir: string,
+  features: FeatureOptions
+): Promise<void> {
+  await fs.copy(sourceDir, targetDir, {
+    filter: (sourcePath) => shouldCopyFromLocalSource(sourceDir, sourcePath),
+  });
+
+  const featureExclusions = getFeatureExclusions(features);
+  await cleanupExcludes(targetDir, featureExclusions);
 }
 
 async function countFiles(dir: string): Promise<number> {
