@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 
+import { AGENT_DOC_TEMPLATE } from './agent-doc-template.js';
 import {
   type FeatureKey,
   type FeatureOptions,
@@ -38,6 +39,7 @@ const TESTING_FILE_PATTERNS = [
   /^test-config\.(?:[cm]?[jt]sx?)$/i,
 ];
 const TS_CONFIG_FILE_PATTERN = /^tsconfig(?:\.[^.]+)?\.json$/;
+const AGENT_DOC_TARGETS = ['CLAUDE.md', 'AGENTS.md'];
 
 const MARKER_FILES = [
   'apps/api/src/app.ts',
@@ -52,17 +54,19 @@ function stripFeatureBlocks(
   const lines = content.split('\n');
   const result: string[] = [];
   let skipUntilEnd = false;
-  let currentFeature: string | null = null;
 
   for (const line of lines) {
-    const featureStart = line.match(/\/\/\s*@feature\s+(\w+)/);
-    const featureEnd = line.match(/\/\/\s*@endfeature/);
+    const featureStart = line.match(
+      /^\s*(?:\/\/|<!--)\s*@feature\s+(\w+)\s*(?:-->)?\s*$/
+    );
+    const featureEnd = line.match(
+      /^\s*(?:\/\/|<!--)\s*@endfeature\s*(?:-->)?\s*$/
+    );
 
     if (featureStart) {
       const feature = featureStart[1] as FeatureKey;
       if (disabledFeatures.includes(feature)) {
         skipUntilEnd = true;
-        currentFeature = feature;
       }
       continue;
     }
@@ -70,7 +74,6 @@ function stripFeatureBlocks(
     if (featureEnd) {
       if (skipUntilEnd) {
         skipUntilEnd = false;
-        currentFeature = null;
       }
       continue;
     }
@@ -260,6 +263,8 @@ async function applyFeatureTransforms(
   if (!features.testing) disabledFeatures.push('testing');
   if (!features.admin) disabledFeatures.push('admin');
   if (!features.uploads) disabledFeatures.push('uploads');
+  if (!features.dockerDeploy) disabledFeatures.push('dockerDeploy');
+  if (!features.ciCd) disabledFeatures.push('ciCd');
 
   for (const relativePath of MARKER_FILES) {
     const filePath = path.join(targetDir, relativePath);
@@ -274,6 +279,8 @@ async function applyFeatureTransforms(
   if (!features.testing) {
     await transformForNoTesting(targetDir);
   }
+
+  await transformAgentDocs(targetDir, disabledFeatures);
 }
 
 async function transformForNoTesting(targetDir: string): Promise<void> {
@@ -476,5 +483,20 @@ async function stripTestingFromTsConfigs(currentDir: string): Promise<void> {
     if (changed) {
       await fs.writeFile(fullPath, JSON.stringify(tsconfig, null, 2) + '\n');
     }
+  }
+}
+
+async function transformAgentDocs(
+  targetDir: string,
+  disabledFeatures: FeatureKey[]
+): Promise<void> {
+  let content = stripFeatureBlocks(AGENT_DOC_TEMPLATE, disabledFeatures);
+  content = cleanEmptyLines(content).trimEnd() + '\n';
+
+  for (const fileName of AGENT_DOC_TARGETS) {
+    const filePath = path.join(targetDir, fileName);
+    const heading = fileName === 'AGENTS.md' ? '# AGENTS.md' : '# CLAUDE.md';
+    const fileContent = content.replace(/^#\s+CLAUDE\.md/m, heading);
+    await fs.writeFile(filePath, fileContent, 'utf-8');
   }
 }
