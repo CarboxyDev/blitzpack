@@ -58,6 +58,20 @@ pnpm dev                  # Start development
 
 Full documentation: [github.com/CarboxyDev/blitzpack](https://github.com/CarboxyDev/blitzpack)
 
+## Scaffold Smoke Checks (Repository Maintenance)
+
+Run from repository root:
+
+```bash
+pnpm smoke:create-blitzpack
+```
+
+For a wider matrix:
+
+```bash
+pnpm smoke:create-blitzpack:full
+```
+
 ## License
 
 MIT

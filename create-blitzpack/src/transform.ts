@@ -107,8 +107,10 @@ function transformPackageJson(
     pkg.description = vars.projectDescription;
     delete pkg.repository;
     delete pkg.homepage;
-    delete pkg.scripts?.['init:project'];
     pkg.version = '0.1.0';
+    delete pkg.scripts?.['smoke:create-blitzpack'];
+    delete pkg.scripts?.['smoke:create-blitzpack:ci'];
+    delete pkg.scripts?.['smoke:create-blitzpack:full'];
 
     if (!features.testing) {
       for (const script of TESTING_SCRIPTS) {
