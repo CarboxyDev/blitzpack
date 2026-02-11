@@ -23,6 +23,14 @@ COPY packages/tailwind-config/package.json packages/tailwind-config/
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
+# Ensure optional workspace node_modules paths exist for COPY in later stages.
+# Some packages (e.g. with no deps) may not get a physical node_modules dir.
+RUN mkdir -p \
+  /app/packages/types/node_modules \
+  /app/packages/utils/node_modules \
+  /app/packages/ui/node_modules \
+  /app/packages/tailwind-config/node_modules
+
 # Stage 2: Builder
 FROM node:22-alpine AS builder
 RUN apk add --no-cache libc6-compat
@@ -34,6 +42,10 @@ WORKDIR /app
 # Copy installed dependencies
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
+COPY --from=deps /app/packages/utils/node_modules ./packages/utils/node_modules
+COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
+COPY --from=deps /app/packages/tailwind-config/node_modules ./packages/tailwind-config/node_modules
 
 # Copy source code
 COPY . .
