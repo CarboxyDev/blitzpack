@@ -50,9 +50,10 @@ COPY --from=deps /app/packages/tailwind-config/node_modules ./packages/tailwind-
 # Copy source code
 COPY . .
 
-# Build arguments for environment variables needed at build time
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Build arguments for environment variables needed at build time.
+# Default keeps CI/CD builds working even when build-arg is omitted.
+ARG NEXT_PUBLIC_API_URL=http://localhost:8080/api
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
 # Build the web app (standalone output configured in next.config.ts)
 RUN pnpm --filter @repo/web build
