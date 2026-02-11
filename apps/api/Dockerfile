@@ -21,6 +21,11 @@ COPY packages/utils/package.json packages/utils/
 # Install dependencies (frozen lockfile for reproducible builds)
 RUN pnpm install --frozen-lockfile --prod=false
 
+# Ensure workspace node_modules paths exist for COPY in later stages.
+RUN mkdir -p \
+  /app/packages/types/node_modules \
+  /app/packages/utils/node_modules
+
 # Stage 2: Builder
 FROM node:22-alpine AS builder
 RUN apk add --no-cache libc6-compat openssl
@@ -32,6 +37,8 @@ WORKDIR /app
 # Copy installed dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
+COPY --from=deps /app/packages/utils/node_modules ./packages/utils/node_modules
 
 # Copy source code
 COPY . .
