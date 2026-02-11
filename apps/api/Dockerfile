@@ -31,16 +31,9 @@ WORKDIR /app
 
 # Copy installed dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
-COPY --from=deps /app/packages/types/node_modules ./packages/types/node_modules
-COPY --from=deps /app/packages/utils/node_modules ./packages/utils/node_modules
 
 # Copy source code
 COPY . .
-
-# Build shared packages first (types and utils)
-RUN pnpm --filter @repo/packages-types build
-RUN pnpm --filter @repo/packages-utils build
 
 # Generate Prisma Client
 RUN pnpm --filter @repo/api db:generate
@@ -64,9 +57,10 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=fastify:nodejs /app/apps/api/dist ./apps/api/dist
 COPY --from=builder --chown=fastify:nodejs /app/apps/api/package.json ./apps/api/
 COPY --from=builder --chown=fastify:nodejs /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder --chown=fastify:nodejs /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 COPY --from=builder --chown=fastify:nodejs /app/packages ./packages
 COPY --from=builder --chown=fastify:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=fastify:nodejs /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=deps --chown=fastify:nodejs /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder --chown=fastify:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=fastify:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 
@@ -82,5 +76,6 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start command - run migrations then start server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+# Start command - ensure local uploads dir exists, run migrations, then start server.
+# We use tsx loader because shared workspace packages export TypeScript source.
+CMD ["sh", "-c", "mkdir -p public/uploads && pnpm --filter @repo/api exec prisma migrate deploy && node --import tsx dist/src/server.js"]
