@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'path';
 
 import { AGENT_DOC_TEMPLATE } from './agent-doc-template.js';
+import { CI_WORKFLOW_TEMPLATE } from './ci-workflow-template.js';
 import {
   type FeatureKey,
   type FeatureOptions,
@@ -40,6 +41,7 @@ const TESTING_FILE_PATTERNS = [
 ];
 const TS_CONFIG_FILE_PATTERN = /^tsconfig(?:\.[^.]+)?\.json$/;
 const AGENT_DOC_TARGETS = ['CLAUDE.md', 'AGENTS.md'];
+const CI_WORKFLOW_RELATIVE_PATH = '.github/workflows/ci.yml';
 
 const MARKER_FILES = [
   'apps/api/src/app.ts',
@@ -57,10 +59,10 @@ function stripFeatureBlocks(
 
   for (const line of lines) {
     const featureStart = line.match(
-      /^\s*(?:\/\/|<!--)\s*@feature\s+(\w+)\s*(?:-->)?\s*$/
+      /^\s*(?:\/\/|#|<!--)\s*@feature\s+(\w+)\s*(?:-->)?\s*$/
     );
     const featureEnd = line.match(
-      /^\s*(?:\/\/|<!--)\s*@endfeature\s*(?:-->)?\s*$/
+      /^\s*(?:\/\/|#|<!--)\s*@endfeature\s*(?:-->)?\s*$/
     );
 
     if (featureStart) {
@@ -280,6 +282,7 @@ async function applyFeatureTransforms(
     await transformForNoTesting(targetDir);
   }
 
+  await transformCiWorkflow(targetDir, disabledFeatures);
   await transformAgentDocs(targetDir, disabledFeatures);
 }
 
@@ -499,4 +502,16 @@ async function transformAgentDocs(
     const fileContent = content.replace(/^#\s+CLAUDE\.md/m, heading);
     await fs.writeFile(filePath, fileContent, 'utf-8');
   }
+}
+
+async function transformCiWorkflow(
+  targetDir: string,
+  disabledFeatures: FeatureKey[]
+): Promise<void> {
+  const workflowPath = path.join(targetDir, CI_WORKFLOW_RELATIVE_PATH);
+  await fs.ensureDir(path.dirname(workflowPath));
+
+  let content = stripFeatureBlocks(CI_WORKFLOW_TEMPLATE, disabledFeatures);
+  content = cleanEmptyLines(content).trimEnd() + '\n';
+  await fs.writeFile(workflowPath, content, 'utf-8');
 }
