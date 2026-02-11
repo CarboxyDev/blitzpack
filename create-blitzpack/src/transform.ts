@@ -9,6 +9,7 @@ import {
   REPLACEABLE_FILES,
   type TemplateVariables,
 } from './constants.js';
+import { DOCKER_CI_WORKFLOW_TEMPLATE } from './docker-ci-workflow-template.js';
 
 const TESTING_SCRIPTS = [
   'test',
@@ -42,6 +43,7 @@ const TESTING_FILE_PATTERNS = [
 const TS_CONFIG_FILE_PATTERN = /^tsconfig(?:\.[^.]+)?\.json$/;
 const AGENT_DOC_TARGETS = ['CLAUDE.md', 'AGENTS.md'];
 const CI_WORKFLOW_RELATIVE_PATH = '.github/workflows/ci.yml';
+const DOCKER_CI_WORKFLOW_RELATIVE_PATH = '.github/workflows/docker-build.yml';
 
 const MARKER_FILES = [
   'apps/api/src/app.ts',
@@ -283,6 +285,7 @@ async function applyFeatureTransforms(
   }
 
   await transformCiWorkflow(targetDir, disabledFeatures);
+  await transformDockerCiWorkflow(targetDir, features);
   await transformAgentDocs(targetDir, disabledFeatures);
 }
 
@@ -513,5 +516,23 @@ async function transformCiWorkflow(
 
   let content = stripFeatureBlocks(CI_WORKFLOW_TEMPLATE, disabledFeatures);
   content = cleanEmptyLines(content).trimEnd() + '\n';
+  await fs.writeFile(workflowPath, content, 'utf-8');
+}
+
+async function transformDockerCiWorkflow(
+  targetDir: string,
+  features: FeatureOptions
+): Promise<void> {
+  const workflowPath = path.join(targetDir, DOCKER_CI_WORKFLOW_RELATIVE_PATH);
+
+  if (!features.dockerDeploy) {
+    if (await fs.pathExists(workflowPath)) {
+      await fs.remove(workflowPath);
+    }
+    return;
+  }
+
+  await fs.ensureDir(path.dirname(workflowPath));
+  const content = DOCKER_CI_WORKFLOW_TEMPLATE.trimEnd() + '\n';
   await fs.writeFile(workflowPath, content, 'utf-8');
 }

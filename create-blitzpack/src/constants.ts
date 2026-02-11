@@ -105,6 +105,7 @@ export const FEATURE_EXCLUSIONS: Record<FeatureKey, string[]> = {
     'apps/api/Dockerfile',
     'apps/web/Dockerfile',
     'deploy/docker',
+    '.github/workflows/docker-build.yml',
   ],
   ciCd: ['.github/workflows/cd.yml'],
 };
