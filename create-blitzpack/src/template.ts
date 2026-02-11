@@ -15,6 +15,8 @@ const POST_DOWNLOAD_EXCLUDES = [
   'create-blitzpack',
   'apps/marketing',
   'CONTRIBUTING.md',
+  'docs/create-blitzpack-scaffolding-maintenance-plan.md',
+  'pnpm-lock.yaml',
 ];
 
 function getFeatureExclusions(features: FeatureOptions): string[] {

@@ -181,7 +181,8 @@ ${vars.projectDescription}
 
 \`\`\`bash
 pnpm install
-pnpm init:project
+docker compose up -d
+pnpm db:migrate
 pnpm dev
 \`\`\`
 

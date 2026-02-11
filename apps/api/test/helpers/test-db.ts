@@ -1,13 +1,14 @@
-import 'dotenv-flow/config';
-
 import { PrismaPg } from '@prisma/adapter-pg';
 import { execSync } from 'child_process';
+import dotenvFlow from 'dotenv-flow';
 import { Pool } from 'pg';
 
 import { PrismaClient } from '@/generated/client/client.js';
 
 let prisma: PrismaClient | null = null;
 let pool: Pool | null = null;
+
+dotenvFlow.config({ silent: true });
 
 /**
  * Get test database URL

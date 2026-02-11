@@ -5,7 +5,6 @@
   "type": "module",
   "description": "Production-ready Full Stack TypeScript monorepo with Next.js and Fastify",
   "scripts": {
-    "init:project": "node scripts/setup.js",
     "dev": "turbo run dev",
     "dev:tui": "turbo run dev --ui=tui",
     "dev:debug": "turbo run dev --verbose",

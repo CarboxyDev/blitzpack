@@ -41,6 +41,18 @@ function runInstall(cwd: string): Promise<boolean> {
   });
 }
 
+function installGitHooks(cwd: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const isWindows = process.platform === 'win32';
+    const child = spawn(isWindows ? 'pnpm.cmd' : 'pnpm', ['exec', 'husky'], {
+      cwd,
+      stdio: 'ignore',
+    });
+    child.on('close', (code) => resolve(code === 0));
+    child.on('error', () => resolve(false));
+  });
+}
+
 interface CreateFlags {
   skipGit?: boolean;
   skipInstall?: boolean;
@@ -128,11 +140,11 @@ function printDryRun(options: {
   console.log(`    ${chalk.dim('•')} Download template from GitHub`);
   console.log(`    ${chalk.dim('•')} Transform package.json files`);
   console.log(`    ${chalk.dim('•')} Create .env.local files`);
-  if (!options.skipGit) {
-    console.log(`    ${chalk.dim('•')} Initialize git repository`);
-  }
   if (!options.skipInstall) {
     console.log(`    ${chalk.dim('•')} Install dependencies (pnpm install)`);
+  }
+  if (!options.skipGit) {
+    console.log(`    ${chalk.dim('•')} Initialize git repository`);
   }
   console.log();
 }
@@ -198,6 +210,7 @@ export async function create(
     (shouldRunSetup ? 1 : 0);
   let currentStep = 0;
   let spinner: Ora | undefined;
+  let installSucceeded = false;
 
   try {
     currentStep += 1;
@@ -220,13 +233,39 @@ export async function create(
     await copyEnvFiles(targetDir);
     spinner.succeed('Configured project');
 
+    if (!options.skipInstall) {
+      currentStep += 1;
+      printStepHeader(currentStep, totalSteps, 'Install dependencies');
+      spinner.start('Installing dependencies...');
+      installSucceeded = await runInstall(targetDir);
+      if (installSucceeded) {
+        spinner.succeed('Installed dependencies');
+      } else {
+        spinner.warn(
+          'Failed to install dependencies. Run "pnpm install" manually.'
+        );
+      }
+    }
+
     if (!options.skipGit && isGitInstalled()) {
       currentStep += 1;
       printStepHeader(currentStep, totalSteps, 'Initialize git repository');
       spinner.start('Initializing git repository...');
       const gitSuccess = initGit(targetDir);
       if (gitSuccess) {
-        spinner.succeed('Initialized git repository');
+        if (installSucceeded) {
+          spinner.start('Installing git hooks...');
+          const hooksSuccess = await installGitHooks(targetDir);
+          if (hooksSuccess) {
+            spinner.succeed('Initialized git repository');
+          } else {
+            spinner.warn(
+              'Initialized git repository, but failed to install git hooks'
+            );
+          }
+        } else {
+          spinner.succeed('Initialized git repository');
+        }
       } else {
         spinner.warn('Failed to initialize git repository');
       }
@@ -234,20 +273,6 @@ export async function create(
       currentStep += 1;
       printStepHeader(currentStep, totalSteps, 'Initialize git repository');
       spinner.warn('Skipped git initialization (git not installed)');
-    }
-
-    if (!options.skipInstall) {
-      currentStep += 1;
-      printStepHeader(currentStep, totalSteps, 'Install dependencies');
-      spinner.start('Installing dependencies...');
-      const success = await runInstall(targetDir);
-      if (success) {
-        spinner.succeed('Installed dependencies');
-      } else {
-        spinner.warn(
-          'Failed to install dependencies. Run "pnpm install" manually.'
-        );
-      }
     }
 
     let ranAutomaticSetup = false;
