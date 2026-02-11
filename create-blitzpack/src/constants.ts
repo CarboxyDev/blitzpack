@@ -15,7 +15,12 @@ export interface TemplateVariables {
 export const DEFAULT_DESCRIPTION =
   'A full-stack TypeScript monorepo built with Blitzpack';
 
-export type FeatureKey = 'testing' | 'admin' | 'uploads' | 'deployment';
+export type FeatureKey =
+  | 'testing'
+  | 'admin'
+  | 'uploads'
+  | 'dockerDeploy'
+  | 'ciCd';
 
 export interface Feature {
   key: FeatureKey;
@@ -23,7 +28,7 @@ export interface Feature {
   description: string;
 }
 
-export const OPTIONAL_FEATURES: Feature[] = [
+export const APP_FEATURES: Feature[] = [
   {
     key: 'testing',
     name: 'Testing',
@@ -39,10 +44,18 @@ export const OPTIONAL_FEATURES: Feature[] = [
     name: 'File Uploads',
     description: 'S3 storage, upload routes, file components',
   },
+];
+
+export const DEPLOYMENT_FEATURES: Feature[] = [
   {
-    key: 'deployment',
-    name: 'Deployment',
-    description: 'Dockerfile, CI/CD workflows, production configs',
+    key: 'dockerDeploy',
+    name: 'Docker Deployment',
+    description: 'Dockerfiles for API/Web and production Docker Compose',
+  },
+  {
+    key: 'ciCd',
+    name: 'CD Workflow',
+    description: 'GitHub Actions workflow to build and publish Docker images',
   },
 ];
 
@@ -87,17 +100,19 @@ export const FEATURE_EXCLUSIONS: Record<FeatureKey, string[]> = {
     'packages/ui/src/file-upload-input.tsx',
     'packages/types/src/upload.ts',
   ],
-  deployment: [
-    'Dockerfile',
-    'Dockerfile.web',
-    'docker-compose.prod.yml',
-    '.github',
+  dockerDeploy: [
+    'apps/api/.dockerignore',
+    'apps/api/Dockerfile',
+    'apps/web/Dockerfile',
+    'deploy/docker',
   ],
+  ciCd: ['.github/workflows/cd.yml'],
 };
 
 export interface FeatureOptions {
   testing: boolean;
   admin: boolean;
   uploads: boolean;
-  deployment: boolean;
+  dockerDeploy: boolean;
+  ciCd: boolean;
 }

@@ -1,10 +1,10 @@
 {
   "name": "create-blitzpack",
-  "version": "0.1.14",
+  "version": "0.1.17",
   "description": "Create a new Blitzpack project - full-stack TypeScript monorepo with Next.js and Fastify",
   "type": "module",
   "bin": {
-    "create-blitzpack": "./dist/index.js"
+    "create-blitzpack": "dist/index.js"
   },
   "files": [
     "dist"
@@ -47,7 +47,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/CarboxyDev/blitzpack"
+    "url": "git+https://github.com/CarboxyDev/blitzpack.git"
   },
   "homepage": "https://github.com/CarboxyDev/blitzpack",
   "engines": {

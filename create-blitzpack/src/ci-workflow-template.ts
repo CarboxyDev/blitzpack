@@ -1,0 +1,158 @@
+export const CI_WORKFLOW_TEMPLATE = `name: CI
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+# Cancel in-progress runs when a new commit is pushed
+concurrency:
+  group: \${{ github.workflow }}-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fast checks that can run in parallel
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint
+        run: pnpm run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run typecheck
+        run: pnpm run typecheck
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+
+  # @feature testing
+  # Tests and build run after lint/typecheck pass
+  test:
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+
+    # PostgreSQL service for integration tests
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app_dev_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app_dev
+      API_URL: http://localhost:8080
+      FRONTEND_URL: http://localhost:3000
+      PORT: 8080
+      LOG_LEVEL: minimal
+      COOKIE_SECRET: test-cookie-secret-for-ci
+      BETTER_AUTH_SECRET: test-secret-minimum-32-characters-long-for-ci
+      BETTER_AUTH_URL: http://localhost:8080
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: cd apps/api && npx prisma generate
+
+      - name: Run tests
+        run: pnpm run test
+  # @endfeature
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter @repo/api db:generate
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+
+      - name: Setup Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: \${{ runner.os }}-turbo-\${{ github.sha }}
+          restore-keys: |
+            \${{ runner.os }}-turbo-
+
+      - name: Build
+        run: pnpm run build
+        env:
+          NODE_ENV: production
+          API_URL: 'http://localhost:8080'
+          FRONTEND_URL: 'http://localhost:3000'
+          DATABASE_URL: 'postgresql://user:pass@localhost:5432/db'
+          PORT: '8080'
+          LOG_LEVEL: 'minimal'
+          COOKIE_SECRET: 'ci-test-secret-not-for-production'
+          BETTER_AUTH_SECRET: 'test-secret-minimum-32-characters-long-for-ci'
+          BETTER_AUTH_URL: 'http://localhost:8080'
+          NEXT_PUBLIC_API_URL: 'http://localhost:8080/api'
+`;
