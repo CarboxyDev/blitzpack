@@ -45,9 +45,11 @@ The setup wizard will guide you through project creation and next steps. Make su
 
 During setup, choose a profile:
 
-- **Recommended**: Full app features + Docker deployment assets + CD workflow.
-- **Platform-First**: Full app features, no deployment assets.
-- **Custom**: Pick app features and deployment options independently.
+- **Recommended**: Core app with everything included.
+- **Platform-Agnostic**: Core app without dockerfiles.
+- **Modular**: Core app with features of your choice.
+
+If you choose **Modular**, the wizard opens feature customization before scaffolding.
 
 **What's running after setup:**
 
