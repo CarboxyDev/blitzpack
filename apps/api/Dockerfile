@@ -31,9 +31,14 @@ WORKDIR /app
 
 # Copy installed dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 
 # Copy source code
 COPY . .
+
+# Prisma config requires DATABASE_URL even for client generation.
+# A dummy URL is enough at build time because no DB connection is needed for generate.
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
 
 # Generate Prisma Client
 RUN pnpm --filter @repo/api db:generate
